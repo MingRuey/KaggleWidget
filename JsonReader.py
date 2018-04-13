@@ -7,60 +7,62 @@ Download image from the big json file, provided in iMaterialist Challenge(Fashio
 https://www.kaggle.com/c/imaterialist-challenge-fashion-2018
 
 """
-
+# for module
 import ijson
+import urllib.request
+# for main()
 import os
-import urllib
+import functools
+from multiprocessing import Pool
 
-def img_download(url, file):
+
+def img_download(url, filename, path):
     try:
+        file = open(path+'\\'+filename, 'wb')
         img = urllib.request.urlopen(url).read()
         if img:
             file.write(img)
     except (OSError, IOError) as err:
-        print(err)
+        print(err, url)
     return None
 
-def json_parse(file, path_img_dl=None):
-    path = os.getcwd() + '\\' + ('images' if not path_img_dl else path_img_dl)
-    if not os.path.exists(path):
-        os.makedirs(path)
-    
-    # parsing jason file
-    print('...start parsing')
+
+def json_parse(file):
+    imgids = []
     urls = []
-    imgId = [] # two big lists get the shit done, while writing in coroutine way may be better.
     for prefix, event, value in ijson.parse(file):
         try:
             if prefix.lower().endswith('id'): # dev: test prefix before value is important!
-                imgId.append(value)
-            elif value.startswith('https'): # this could raise AttributeError!
+                imgids.append(str(value)+'.jpg')
+            elif value.startswith('https://contestimg.wish.com'): # this could raise AttributeError!
                 urls.append(value)
-        except AttributeError as err: # if value or prefix is not string
+        except AttributeError as err:# if value or prefix is not string
             pass
-    print('...end parsing, start dowloading')
-    
-    # downloading images
-    for url in urls:
-        try:
-            filename = str(imgId.pop(0)) + '.jpg'
-        except IndexError: # there are not enough image IDs:
+        
+        if len(urls) and len(imgids):
+            yield (urls.pop(), imgids.pop())
+        
+    if len(urls): # if there are not enough image IDs:
+        for url in urls:
             filename = url.split('/')[-1] + \
                        ('.jpg' if not url.split('/')[-1].endswith(('.jpeg','.jpg')) else '')
-        try:          
-            file = open(path+'\\'+filename, 'wb')
-            img_download(url, file)
-        except IOError as err:
-            print(err)
-        finally:
-            file.close()
-    print('...finished')
-    return None
+            yield url, filename
 
 def main():
     try:
-        file = open('data_test.json')
-        json_parse(file, path_img_dl='data_test')
+        file = open('data_train.json')
+        path = os.getcwd() + '\\data_train'
+        if not os.path.exists(path):
+            os.makedirs(path)
+            
+        # download images in multiproccesses
+        func = functools.partial(img_download, path=path)
+        task = json_parse(file)
+        with Pool(processes=10) as p:
+            p.starmap(func, task)
+            p.close()            
+            p.join()
+            
     except IOError as err:
         print(err)
     finally:
