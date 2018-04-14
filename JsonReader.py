@@ -17,13 +17,14 @@ from multiprocessing import Pool
 
 
 def img_download(url, filename, path):
-    try:
-        file = open(path+'\\'+filename, 'wb')
-        img = urllib.request.urlopen(url).read()
-        if img:
-            file.write(img)
-    except (OSError, IOError) as err:
-        print(err, url)
+    if not os.path.isfile(path+'\\'+filename): # download with such many files, it is worthy to check.
+        try:
+            file = open(path+'\\'+filename, 'wb')
+            img = urllib.request.urlopen(url).read()
+            if img:
+                file.write(img)
+        except (OSError, IOError) as err:
+            print(err, url)
     return None
 
 
