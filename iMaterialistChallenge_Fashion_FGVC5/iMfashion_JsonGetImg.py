@@ -42,7 +42,7 @@ def json_parse(file):
         
         if len(urls) and len(imgids):
             yield (urls.pop(), imgids.pop())
-        
+    
     if len(urls): # if there are not enough image IDs:
         for url in urls:
             filename = url.split('/')[-1] + \
