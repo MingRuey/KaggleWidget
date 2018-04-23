@@ -12,6 +12,19 @@ import json
 import numpy
 import pickle
 
+def urlfromjson(file):
+    try:
+        urls = json.load(file)
+        urls = urls['images'] 
+        # urls is a list: 
+        # [{'imageId':1, 'url':'http://cont...'}, {'imageId':2...}, ...]
+    except ValueError as err:
+        print('Error occurs while loading the json file:  ' + err)
+        return None
+        
+    urls = {int(img['imageId']):img['url'] for img in urls}
+    return urls
+
 def labelfromjson(file):
     try:
         labels = json.load(file)
@@ -29,12 +42,11 @@ def labelfromjson(file):
     # building the matrix:
     n_col = 500 # default 500 columns
     need_cut = True
-    matrix = numpy.zeros((len(labels), n_col), dtype=numpy.uint32)
-    
+    matrix = numpy.zeros((len(labels), n_col), dtype=numpy.uint32)   
     
     # Create a numpy array according to labels --
     # 
-    # each row is the labels of an image --
+    # Each row is the labels of an image --
     # the 1st column of data is the image id.
     # the i-th column is the record of whether the image has label number i. (1 = yes. / 0 = no.)
     # Ex. a row of [87, 1, 0, 0, 0, 1, 0, 0, 0, 1] means the image with id 87 is labeled with 1, 5 and 9.
@@ -51,7 +63,7 @@ def labelfromjson(file):
             need_cut = False
             
     # !magic steps for cutting the redudant zero blocks in matrix
-    # see stackoverflow: 39465812/how-to-crop-zero-edges-of-a-numpy-array
+    # see StackOverflow: 39465812/how-to-crop-zero-edges-of-a-numpy-array
     if need_cut:
         l = numpy.argwhere(matrix).max(axis=0)
         matrix = matrix[:l[0]+1,:l[1]+1]

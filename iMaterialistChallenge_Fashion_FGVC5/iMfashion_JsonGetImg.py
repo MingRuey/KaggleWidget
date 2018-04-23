@@ -3,32 +3,39 @@
 Created on Fri Apr 13 21:39:15 2018
 @author: MRChou
 
-Download image from the big json file, provided in iMaterialist Challenge(Fashion):
+Download images from the big json file, provided in iMaterialist Challenge(Fashion):
 https://www.kaggle.com/c/imaterialist-challenge-fashion-2018
 
 """
 # for module
 import ijson
 import urllib.request
+from iMfashion_JsonExtractLabel import urlfromjson
 # for main()
 import os
 import functools
 from multiprocessing import Pool
 
-
 def img_download(url, filename, path):
-    if not os.path.isfile(path+'\\'+filename): # download with such many files, it is worthy to check.
+    if not os.path.isfile(path+'\\'+filename): # if the file already exists, pass it.
         try:
-            file = open(path+'\\'+filename, 'wb')
-            img = urllib.request.urlopen(url).read()
+            img = urllib.request.urlopen(url)
+            img = img.read()
             if img:
+                file = open(path+'\\'+filename, 'wb')
                 file.write(img)
+                file.close()
         except (OSError, IOError) as err:
-            print(err, url)
-    return None
+            print('-- while downloadning {0}, {1}'.format(filename, err))
+            return None
+    return True
 
-
-def json_parse(file):
+def urlgenerator_json(file):
+    urls = urlfromjson(file)
+    for imgid in urls:
+        yield urls[imgid], str(imgid)+'.jpg'
+    
+def urlgenerator_ijson(file):
     imgids = []
     urls = []
     for prefix, event, value in ijson.parse(file):
@@ -52,13 +59,13 @@ def json_parse(file):
 def main():
     try:
         file = open('data_train.json')
-        path = os.getcwd() + '\\data_train'
+        path = 'Y:/iMaterialistChallenge_Fashion_FGVC5/imgs_train'
         if not os.path.exists(path):
             os.makedirs(path)
             
         # download images in multiproccesses
         func = functools.partial(img_download, path=path)
-        task = json_parse(file)
+        task = urlgenerator_json(file)
         with Pool(processes=10) as p:
             p.starmap(func, task)
             p.close()            
