@@ -24,7 +24,7 @@ for layer in base_model.layers:
 # compile the model
 model.compile(optimizer='rmsprop', loss='binary_crossentropy')
 
-# train the model on the new data for a few epochs
-model.fit_generator(...)
-
+# use 2 GPU
+parallel_model = multi_gpu_model(model, gpus=2)
+parallel_moidel.fit(train_dataset, train_label, epochs=3, batch_size=300, validation_split=0.1, shuffle=True)
 
