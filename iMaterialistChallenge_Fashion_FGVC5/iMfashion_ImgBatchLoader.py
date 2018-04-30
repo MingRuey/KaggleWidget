@@ -42,7 +42,7 @@ class ImgBatchLoader():
                     img = resize(img, self._size, preserve_range = True)
                     label = self._labels[numpy.where(self._labels[:,0]==imgid), 1:]
                     yield img, label
-                except IOError as err:
+                except (IOError, ValueError) as err:
                     print('While loading {0}: {1}'.format(file, err))
                 except IndexError as err:
                     print('While finding labels for img id {0} : {1}'.format(imgid, err))
