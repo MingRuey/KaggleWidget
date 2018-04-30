@@ -57,10 +57,10 @@ class ImgBatchLoader():
             # start collecting one batch
             count = 0
             img_batch = numpy.zeros((batch_size, *self._size))
-            label_batch = numpy.zeros((batch_size, 1, self._labels.shape[1]-1))
+            label_batch = numpy.zeros((batch_size, self._labels.shape[1]-1))
             for img, imglabel in self._imgs:
                 img_batch[count, :, :, :] = img
-                label_batch[count, :, :] = imglabel
+                label_batch[count, :] = imglabel
                 count +=1
                 if count == batch_size:
                     count = 0
