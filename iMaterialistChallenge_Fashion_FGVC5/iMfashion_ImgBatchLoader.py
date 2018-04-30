@@ -18,9 +18,14 @@ from skimage.transform import resize
 
 class ImgBatchLoader():
 
-    def __init__(self, img_path, img_label):
+    def __init__(self, img_path, img_label, img_size=(300,300,3)):
         self._path = img_path
-        self._imglabels = pickle.load(open(os.path.join(self._path, img_label), 'rb'))
+        try:
+            self._labels = pickle.load(open(os.path.join(self._path, img_label), 'rb'))
+        except (OSError, TypeError) as err:
+            raise OSError('img_label should be a pickle file available:', err)
+        self._size = img_size
+        self._imgs = None
 
 
     # Generator for loading and resizing images:
@@ -34,27 +39,25 @@ class ImgBatchLoader():
                 imgid = int(file[:-4])
                 try:
                     img = imageio.imread(os.path.join(self._path, file))
-                    # currently it forces resizing image to shape (300,300,3)
-                    img = resize(img, (300, 300, 3), preserve_range = True)
-                    label = self._imglabels[imgid-1, 1:]
+                    img = resize(img, self._size, preserve_range = True)
+                    label = self._labels[numpy.where(self._labels[:,0]==imgid), 1:]
                     yield img, label
                 except IOError as err:
                     print('While loading {0}: {1}'.format(file, err))
+                except IndexError as err:
+                    print('While finding labels for img id {0} : {1}'.format(imgid, err))
 
 
     # A batch-data generator, loops infinitely
     def generator(self, batch_size, avgbatch=False, shuffle=True):
-        epoch=1
         while True:
-            print('epoch: ', epoch)
-            epoch+=1
             # begining of an epoch: loading imgs
             self._imgs = self.__load_img(shuffle=shuffle)
 
             # start collecting one batch
             count = 0
-            img_batch = numpy.zeros((batch_size, 300, 300, 3))
-            label_batch = numpy.zeros((batch_size, 1, self._imglabels.shape[1]-1))
+            img_batch = numpy.zeros((batch_size, *self._size))
+            label_batch = numpy.zeros((batch_size, 1, self._labels.shape[1]-1))
             for img, imglabel in self._imgs:
                 img_batch[count, :, :, :] = img
                 label_batch[count, :, :] = imglabel
@@ -62,10 +65,10 @@ class ImgBatchLoader():
                 if count == batch_size:
                     count = 0
                     if avgbatch: # subtract mean if necessary
-                        mean = numpy.mean(batch, axis=(0,1,2))
-                        batch[:, :, :, 0] -= mean[0]
-                        batch[:, :, :, 1] -= mean[1]
-                        batch[:, :, :, 1] -= mean[2]
+                        mean = numpy.mean(img_batch, axis=(0,1,2))
+                        img_batch[:, :, :, 0] -= mean[0]
+                        img_batch[:, :, :, 1] -= mean[1]
+                        img_batch[:, :, :, 2] -= mean[2]
                     yield img_batch, label_batch
 
 # Test the module
@@ -73,13 +76,11 @@ def main():
     path = '/home/mrchou/code/KaggleWidget/'
 
     def test():
-        # create test images
+        # create test images and pickle file
+        label = numpy.zeros((10, 15))
+
         for i in range(10):
             imageio.imwrite(path + str(i) + '.jpg', 10 * (i + 1) * numpy.ones((300, 300, 3), dtype='uint8'))
-
-        # create pickle file
-        label = numpy.zeros((10, 15))
-        for i in range(10):
             label[i, 0] = i
             label[i, i + 1] = 1
 
