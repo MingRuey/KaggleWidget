@@ -41,7 +41,7 @@ class ImgBatchLoader():
                 try:
                     img = imageio.imread(os.path.join(self._path, file))
                     img = resize(img, self._size, preserve_range = True).astype('uint8')
-                    label = self._labels[numpy.where(self._labels[:,0]==imgid), 1:]
+                    label = self._labels[numpy.where(self._labels[:,0]==imgid)][:,1:]
                     yield img, label
                 except (IOError, ValueError) as err:
                     logging.warning('While loading {0}: {1}'.format(file, err))
@@ -57,8 +57,8 @@ class ImgBatchLoader():
 
             # start collecting one batch
             count = 0
-            img_batch = numpy.zeros((batch_size, *self._size))
-            label_batch = numpy.zeros((batch_size, self._labels.shape[1]-1))
+            img_batch = numpy.zeros((batch_size, *self._size), dtype='uint8')
+            label_batch = numpy.zeros((batch_size, self._labels.shape[1]-1), dtype='uint8')
             for img, imglabel in self._imgs:
                 img_batch[count, :, :, :] = img
                 label_batch[count, :] = imglabel
