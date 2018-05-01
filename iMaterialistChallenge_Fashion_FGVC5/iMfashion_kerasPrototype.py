@@ -13,6 +13,13 @@ from keras.models import Model
 from keras.layers import Dense, GlobalAveragePooling2D
 from keras.applications.vgg16 import VGG16
 from keras.applications.inception_v3 import InceptionV3
+from keras.utils import multi_gpu_model
+from keras.callbacks import Callback
+
+import logging
+logging.basicConfig(filename='logging.txt', level=logging.INFO)
+
+from iMfashion_ImgBatchLoader import ImgBatchLoader
 
 def model_vgg16():
     model = VGG16(weights='imagenet', include_top=False)
@@ -36,18 +43,70 @@ def model_inceptionV3():
         layer.trainable = False
 
     return model
+    
+def plot_history(fit_history):
+    # list all data in history
+    print(fit_history.history.keys())
+    # summarize history for loss
+    plt.plot(fit_history.history['loss'])
+    plt.plot(fit_history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.savefig('lost.png')
+
+class train_history(Callback):
+    def on_train_begin(self, logs={}):
+        self.losses = []
+        self.val_losses = []
+    def on_batch_end(self, batch, logs={}):
+        self.losses.append(logs.get('loss'))
+        self.val_losses.append(logs.get('val_loss'))
 
 def main():
-
     model = model_inceptionV3()
     model.summary()
 
-    # compile the model
-    model.compile(optimizer='rmsprop', loss='binary_crossentropy')
-
+    train_path = '/rawdata/iMaterialistChallenge_Fashion_FGVC5/imgs_train/'
+    train_label = '/archive/iMfashion/labels/labels_train.pickle'
+    vali_path = '/rawdata/iMaterialistChallenge_Fashion_FGVC5/imgs_validation/'
+    vali_label = '/archive/iMfashion/labels/labels_validation.pickle'
+    
+    train_loader = ImgBatchLoader(img_path=train_path, img_label=train_label)
+    vali_loader = ImgBatchLoader(img_path=vali_path, img_label=vali_label)
+    '''
+    for i in train_loader.generator(10, shuffle=True):
+        print(i[0].shape)
+        print(i[1].shape)
+        print('=====')
+    '''
     # use 2 GPU
-    #parallel_model = multi_gpu_model(model, gpus=2)
-    #parallel_moidel.fit(train_dataset, train_label, epochs=3, batch_size=300, validation_split=0.1, shuffle=True)
+    parallel_model = multi_gpu_model(model, gpus=2)
+    
+    # compile the model
+    
+    # parallel_moidel.fit(train_dataset, train_label, epochs=3, batch_size=300, 
+    #         validation_split=0.1, shuffle=True)
+    
+    parallel_model.compile(optimizer='rmsprop', loss='binary_crossentropy')
+   
+    history = train_history()
+    parallel_model.fit_generator(generator=train_loader.generator(300),
+            validation_data=vali_loader.generator(300),
+            validation_steps=9900/300,
+            steps_per_epoch=210000/300, epochs=5,
+            use_multiprocessing=True, workers=16,
+            callbacks=[history]
+            )
+    
+    model.save('test_model_21w_0501.h5')
+    
+    logging.info(history.losses)
+    logging.info(history.val_losses)
+    
+    # plot training process
+    # plot_history(history)
 
 if __name__=='__main__':
     main()
