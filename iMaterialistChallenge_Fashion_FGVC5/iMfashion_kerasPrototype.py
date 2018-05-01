@@ -17,8 +17,11 @@ from keras.utils import multi_gpu_model
 from keras.callbacks import Callback
 
 import logging
-logging.basicConfig(filename='logging.txt', level=logging.INFO)
-
+logging.basicConfig(format='%(asctime)s %(message)s',
+        datefmt='%m/%d/%Y %I:%M:%S %p',
+        filename='training.log', level=logging.INFO
+        )
+import matplotlib.pyplot as plt
 from iMfashion_ImgBatchLoader import ImgBatchLoader
 
 def model_vgg16():
@@ -46,10 +49,12 @@ def model_inceptionV3():
     
 def plot_history(fit_history):
     # list all data in history
-    print(fit_history.history.keys())
+    # print(fit_history.history.keys())
     # summarize history for loss
-    plt.plot(fit_history.history['loss'])
-    plt.plot(fit_history.history['val_loss'])
+    # plt.plot(fit_history.history['loss'])
+    # plt.plot(fit_history.history['val_loss'])
+    plt.plot(fit_history.epoch_losses)
+    plt.plot(fit_history.epoch_val_losses)
     plt.title('model loss')
     plt.ylabel('loss')
     plt.xlabel('epoch')
@@ -58,11 +63,14 @@ def plot_history(fit_history):
 
 class train_history(Callback):
     def on_train_begin(self, logs={}):
-        self.losses = []
-        self.val_losses = []
+        self.batch_losses = []
+        self.epoch_val_losses = []
+        self.epoch_losses = []
     def on_batch_end(self, batch, logs={}):
-        self.losses.append(logs.get('loss'))
-        self.val_losses.append(logs.get('val_loss'))
+        self.batch_losses.append(logs.get('loss'))
+    def on_epoch_end(self, epoch, logs={}):
+        self.epoch_val_losses.append(logs.get('val_loss'))
+        self.epoch_losses.append(logs.get('loss'))
 
 def main():
     model = model_inceptionV3()
@@ -95,15 +103,16 @@ def main():
     parallel_model.fit_generator(generator=train_loader.generator(300),
             validation_data=vali_loader.generator(300),
             validation_steps=9900/300,
-            steps_per_epoch=210000/300, epochs=5,
+            steps_per_epoch=9900/300, epochs=2,
             use_multiprocessing=True, workers=16,
             callbacks=[history]
             )
     
-    model.save('test_model_21w_0501.h5')
+    model.save('test_model_9k_0501.h5')
     
-    logging.info(history.losses)
-    logging.info(history.val_losses)
+    logging.info(history.batch_losses)
+    logging.info(history.epoch_losses)
+    logging.info(history.epoch_val_losses)
     
     # plot training process
     # plot_history(history)
