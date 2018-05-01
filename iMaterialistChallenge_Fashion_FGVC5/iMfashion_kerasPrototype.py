@@ -102,13 +102,13 @@ def main():
     history = train_history()
     parallel_model.fit_generator(generator=train_loader.generator(300),
             validation_data=vali_loader.generator(300),
-            validation_steps=9900/300,
-            steps_per_epoch=9900/300, epochs=2,
+            validation_steps=9900//300,
+            steps_per_epoch=1014547//300, epochs=5,
             use_multiprocessing=True, workers=16,
             callbacks=[history]
             )
     
-    model.save('test_model_9k_0501.h5')
+    model.save('test_model_all_0501.h5')
     
     logging.info(history.batch_losses)
     logging.info(history.epoch_losses)
