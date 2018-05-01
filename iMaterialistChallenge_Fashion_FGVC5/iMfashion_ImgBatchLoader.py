@@ -12,6 +12,7 @@ import numpy
 import os.path
 import imageio
 import pickle
+import logging
 from random import shuffle as rndshuffle
 from skimage.transform import resize
 
@@ -39,13 +40,13 @@ class ImgBatchLoader():
                 imgid = int(file[:-4])
                 try:
                     img = imageio.imread(os.path.join(self._path, file))
-                    img = resize(img, self._size, preserve_range = True)
+                    img = resize(img, self._size, preserve_range = True).astype('uint8')
                     label = self._labels[numpy.where(self._labels[:,0]==imgid), 1:]
                     yield img, label
                 except (IOError, ValueError) as err:
-                    print('While loading {0}: {1}'.format(file, err))
+                    logging.warning('While loading {0}: {1}'.format(file, err))
                 except IndexError as err:
-                    print('While finding labels for img id {0} : {1}'.format(imgid, err))
+                    logging.warning('While finding labels for img id {0} : {1}'.format(imgid, err))
 
 
     # A batch-data generator, loops infinitely
