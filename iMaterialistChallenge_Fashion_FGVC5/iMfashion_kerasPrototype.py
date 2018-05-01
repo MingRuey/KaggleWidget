@@ -15,6 +15,7 @@ from keras.applications.vgg16 import VGG16
 from keras.applications.inception_v3 import InceptionV3
 from keras.utils import multi_gpu_model
 from keras.callbacks import Callback
+from keras.callbacks import ModelCheckpoint
 
 import logging
 logging.basicConfig(format='%(asctime)s %(message)s',
@@ -42,11 +43,13 @@ def model_inceptionV3():
     model = Model(inputs=base_model.input, outputs=predictions)
 
     # don't changed the weight of base_model.
+    
     for layer in base_model.layers:
         layer.trainable = False
-
+    
     return model
     
+
 def plot_history(fit_history):
     # list all data in history
     # print(fit_history.history.keys())
@@ -98,17 +101,26 @@ def main():
     #         validation_split=0.1, shuffle=True)
     
     parallel_model.compile(optimizer='rmsprop', loss='binary_crossentropy')
-   
+  
+    # checkpoint
+    filepath="best_w.h5"
+    checkpoint = ModelCheckpoint(filepath, monitor='val_loss',
+            verbose=1, save_best_only=True, mode='min')
+    callbacks_list = [checkpoint]
+
+
     history = train_history()
-    parallel_model.fit_generator(generator=train_loader.generator(300),
-            validation_data=vali_loader.generator(300),
-            validation_steps=9900//300,
-            steps_per_epoch=1014547//300, epochs=5,
+    parallel_model.fit_generator(generator=train_loader.generator(256),
+            validation_data=vali_loader.generator(256),
+            validation_steps=9900//256,
+            steps_per_epoch=1014547//256, epochs=1,
             use_multiprocessing=True, workers=16,
-            callbacks=[history]
+            max_queue_size=100,
+            callbacks=[history, checkpoint]
             )
     
-    model.save('test_model_all_0501.h5')
+    # check point will save the best model (val_loss lowest)
+    # model.save('test_model_all_0501.h5')
     
     logging.info(history.batch_losses)
     logging.info(history.epoch_losses)
