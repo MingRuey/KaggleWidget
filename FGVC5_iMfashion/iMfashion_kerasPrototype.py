@@ -23,7 +23,8 @@ logging.basicConfig(format='%(asctime)s %(message)s',
         filename='training.log', level=logging.INFO
         )
 import matplotlib.pyplot as plt
-from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
+#from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
+from iMfashion_ImgBatchLoader import ImgBatchLoader
 
 def model_vgg16():
     model = VGG16(weights='imagenet', include_top=False)
@@ -103,24 +104,26 @@ def main():
     parallel_model.summary()
 
     # checkpoint
+    '''
     filepath="best_w.h5"
     checkpoint = ModelCheckpoint(filepath, monitor='val_loss',
             verbose=1, save_best_only=True, mode='min')
-    callbacks_list = [checkpoint]
-
+    # callbacks_list = [checkpoint]
+    '''
 
     history = train_history()
     parallel_model.fit_generator(generator=train_loader.generator(128),
             validation_data=vali_loader.generator(128),
             validation_steps=9900//128,
-            steps_per_epoch=1014547//128, epochs=3,
-            use_multiprocessing=True, workers=16,
+            steps_per_epoch=1014547//128, epochs=2,
+            use_multiprocessing=True,
+            workers=16,
             max_queue_size=10,
-            callbacks=[history, checkpoint]
+            callbacks=[history]#, checkpoint]
             )
     
     # check point will save the best model (val_loss lowest)
-    # model.save('test_model_all_0501.h5')
+    model.save('test_model_all_0503.h5')
     
     logging.info(history.batch_losses)
     logging.info(history.epoch_losses)
