@@ -59,7 +59,7 @@ def urlgenerator_ijson(file):
 def main():
     try:
         file = open('data_train.json')
-        path = 'Y:/iMaterialistChallenge_Fashion_FGVC5/imgs_train'
+        path = 'Y:/FGVC5_iMfashion/imgs_train'
         if not os.path.exists(path):
             os.makedirs(path)
             

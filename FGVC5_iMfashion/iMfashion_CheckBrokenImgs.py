@@ -29,8 +29,8 @@ def empty_imgs(imgs_path):
 def main():
     file = open('data_train.json')
     urls = urlfromjson(file)
-    target_path = 'Y:/iMaterialistChallenge_Fashion_FGVC5/imgs_train'
-    output_path = 'Y:/iMaterialistChallenge_Fashion_FGVC5/imgs_broken_train'
+    target_path = 'Y:/FGVC5_iMfashion/imgs_train'
+    output_path = 'Y:/FGVC5_iMfashion/imgs_broken_train'
     
     imgs_miss = missing_imgs(target_path ,{str(i)+'.jpg' for i in urls.keys()})
     if imgs_miss:

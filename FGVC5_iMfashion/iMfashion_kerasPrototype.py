@@ -23,7 +23,7 @@ logging.basicConfig(format='%(asctime)s %(message)s',
         filename='training.log', level=logging.INFO
         )
 import matplotlib.pyplot as plt
-from iMfashion_ImgBatchLoader import ImgBatchLoader
+from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
 
 def model_vgg16():
     model = VGG16(weights='imagenet', include_top=False)
@@ -43,9 +43,8 @@ def model_inceptionV3():
     model = Model(inputs=base_model.input, outputs=predictions)
 
     # don't changed the weight of base_model.
-    
-    for layer in base_model.layers:
-        layer.trainable = False
+    # for layer in base_model.layers:
+    #     layer.trainable = False
     
     return model
     
@@ -79,9 +78,9 @@ def main():
     model = model_inceptionV3()
     model.summary()
 
-    train_path = '/rawdata/iMaterialistChallenge_Fashion_FGVC5/imgs_train/'
+    train_path = '/rawdata/FGVC5_iMfashion/imgs_train/'
     train_label = '/archive/iMfashion/labels/labels_train.pickle'
-    vali_path = '/rawdata/iMaterialistChallenge_Fashion_FGVC5/imgs_validation/'
+    vali_path = '/rawdata/FGVC5_iMfashion/imgs_validation/'
     vali_label = '/archive/iMfashion/labels/labels_validation.pickle'
     
     train_loader = ImgBatchLoader(img_path=train_path, img_label=train_label)
@@ -101,7 +100,8 @@ def main():
     #         validation_split=0.1, shuffle=True)
     
     parallel_model.compile(optimizer='rmsprop', loss='binary_crossentropy')
-  
+    parallel_model.summary()
+
     # checkpoint
     filepath="best_w.h5"
     checkpoint = ModelCheckpoint(filepath, monitor='val_loss',
@@ -110,12 +110,12 @@ def main():
 
 
     history = train_history()
-    parallel_model.fit_generator(generator=train_loader.generator(256),
-            validation_data=vali_loader.generator(256),
-            validation_steps=9900//256,
-            steps_per_epoch=1014547//256, epochs=1,
+    parallel_model.fit_generator(generator=train_loader.generator(128),
+            validation_data=vali_loader.generator(128),
+            validation_steps=9900//128,
+            steps_per_epoch=1014547//128, epochs=3,
             use_multiprocessing=True, workers=16,
-            max_queue_size=100,
+            max_queue_size=10,
             callbacks=[history, checkpoint]
             )
     
