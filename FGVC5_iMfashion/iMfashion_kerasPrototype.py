@@ -110,20 +110,33 @@ def main():
             verbose=1, save_best_only=True, mode='min')
     # callbacks_list = [checkpoint]
     '''
-
+    
     history = train_history()
     parallel_model.fit_generator(generator=train_loader.generator(128),
             validation_data=vali_loader.generator(128),
             validation_steps=9900//128,
-            steps_per_epoch=1014547//128, epochs=2,
+            steps_per_epoch=1014547//128, epochs=5,
             use_multiprocessing=True,
             workers=16,
             max_queue_size=10,
             callbacks=[history]#, checkpoint]
             )
-    
+    '''
+    parallel_model.fit_generator(generator=vali_loader.generator(128),
+            validation_data=vali_loader.generator(128),
+            validation_steps=9900//128,
+            steps_per_epoch=9900//128, epochs=2,
+            use_multiprocessing=True,
+            workers=16,
+            max_queue_size=10,
+            callbacks=[history]#, checkpoint]
+            )
+    '''
+    # score = parallel_model.evaluate_generator(vali_loader.generator(128), 990/128, workers=16)
+    # scores = parallel_model.predict_generator(vali_loader.generator(128), 990//128, workers=16)
+    # print(score)
     # check point will save the best model (val_loss lowest)
-    model.save('test_model_all_0503.h5')
+    model.save('test_model_all_vali_0503_nofit.h5')
     
     logging.info(history.batch_losses)
     logging.info(history.epoch_losses)
