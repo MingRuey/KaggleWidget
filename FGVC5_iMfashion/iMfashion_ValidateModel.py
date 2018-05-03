@@ -76,13 +76,13 @@ class eval_matrix(numpy.ndarray):
         f1 = 0 if p+r == 0 else 2*p*r/(p+r)                    # f1 over all labels
         return "precision:{0:4.3f}, recall:{1:4.3f}  with F1 score:{2:4.3f}".format(p,r,f1)
 
-def validate(model, vali_path, label, batchsize=4096):
+def validate(model, vali_path, label, img_size=(300,300,3), threshold=0.1, batchsize=4096):
 
     eval = eval_matrix()
-    batchs = ImgBatchLoader(img_path=vali_path, img_label=label, img_size=model.input_shape[1:])
+    batchs = ImgBatchLoader(img_path=vali_path, img_label=label, img_size=img_size)
 
     for img, label in batchs.generator(batch_size=batchsize, epoch=1, shuffle=False):
-        eval.update(predict=model.predict(img), label=label)
+        eval.update(predict=(model.predict(img) > threshold), label=label)
 
     return eval
 
