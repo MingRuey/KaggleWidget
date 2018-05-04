@@ -25,15 +25,6 @@ class eval_matrix(numpy.ndarray):
     def __new__(cls, size=(0,0), dtype='uint32'):
         return numpy.ndarray.__new__(cls, [], dtype=dtype)
 
-    def __repr__(self):
-        if not self.ndim:
-            return "([], No data have been loaded.)"
-
-        return 'Labels:    {0} '.format(self[0, :].tolist()) + '\n' + \
-               'Positives: {0} '.format(self[1, :].tolist()) + '\n' + \
-               'True pos : {0} '.format(self[2, :].tolist()) + '\n' + \
-               'False neg: {0} '.format(self[3, :].tolist())
-
     # With the prediction values and labels.
     # Caculating the total positive, true positive and false negative.
     def update(self, predict, label):
@@ -69,6 +60,8 @@ class eval_matrix(numpy.ndarray):
         ax.set_title('Scores by Labels')
         ax.set_xticks(self[0, :])
         ax.set_xticklabels((self[0, :]))
+        ax.set_xlim([-0.5, max(self[0, :])+0.5])
+        ax.set_ylim([0,1.1])
         ax.legend()
         fig.tight_layout()
         plt.show()
