@@ -15,14 +15,14 @@ from iMfashion_JsonGetImg import img_download
 # compare imgs in a given path with a image set,
 # return the difference
 def missing_imgs(imgs_path, imgs):
-    imgs_in_target = set(i for i in os.listdir(imgs_path) if i.endswith('.jpg'))
+    imgs_in_target = set(i for i in os.listdir(imgs_path) if i.lower().endswith('.jpg'))
     imgs = set(imgs)
     return imgs - imgs_in_target
 
 # return the empty imgs in a given path
 def empty_imgs(imgs_path):
     empty_imgs = set(i for i in os.listdir(imgs_path) \
-                            if i.endswith('.jpg') and \
+                            if i.lower().endswith('.jpg') and \
                                os.stat(os.path.join(imgs_path,i)).st_size == 0)
     return empty_imgs
     

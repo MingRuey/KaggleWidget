@@ -36,7 +36,7 @@ class ImgBatchLoader():
             rndshuffle(files)
 
         for file in files:
-            if file.endswith('.jpg'):
+            if file.lower().endswith('.jpg'):
                 imgid = int(file[:-4])
                 try:
                     img = imageio.imread(os.path.join(self._path, file))

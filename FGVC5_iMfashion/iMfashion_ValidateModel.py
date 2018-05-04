@@ -7,7 +7,11 @@ precision, recall, F1 score, and performance on each label also.
 
 """
 
+import os
 import numpy
+import imageio
+import logging
+from skimage.transform import resize
 from matplotlib import pyplot as plt
 from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
 
@@ -76,15 +80,35 @@ class eval_matrix(numpy.ndarray):
         f1 = 0 if p+r == 0 else 2*p*r/(p+r)                    # f1 over all labels
         return "precision:{0:4.3f}, recall:{1:4.3f}  with F1 score:{2:4.3f}".format(p,r,f1)
 
-def validate(model, vali_path, label, img_size=(300,300,3), threshold=0.1, batchsize=4096):
+def validate(model, vali_path, label, input_shape=(300,300,3), threshold=0.2, batch_size=3299):
 
     eval = eval_matrix()
-    batchs = ImgBatchLoader(img_path=vali_path, img_label=label, img_size=img_size)
+    batchs = ImgBatchLoader(img_path=vali_path, img_label=label, img_size=input_shape)
 
-    for img, label in batchs.generator(batch_size=batchsize, epoch=1, shuffle=False):
+    for img, label in batchs.generator(batch_size=batch_size, epoch=1, shuffle=False):
         eval.update(predict=(model.predict(img) > threshold), label=label)
 
     return eval
+
+def submission(model, csv_name, test_path='/rawdata/FGVC5_iMfashion/imgs_test', img_size=(300,300,3), threshold=0.2):
+
+    fw = open(csv_name, 'w')
+    fw.write('image_id,label_id\n')
+
+    for file in os.listdir(test_path):
+        if file.lower().endswith('.jpg'):
+            imgid = int(file[:-4])
+            try:
+                img = imageio.imread(os.path.join(test_path, file))
+                img = resize(img, img_size, mode='edge', preserve_range=True).astype('uint8')
+                img = img[numpy.newaxis, :]
+
+                predict = numpy.where(model.predict(img) > threshold)[1] # are the indexs, index+1 = actual labels
+                fw.write( str(imgid)+','+ ''.join(str(i+1)+' ' for i in predict)+'\n' )
+            except (IOError, ValueError) as err:
+                logging.warning('While loading {0}: {1}'.format(file, err))
+
+    fw.close()
 
 # ---
 # Test the module
@@ -110,21 +134,17 @@ def main():
     test_data()
 
     class test_model():
-        def __init__(self, batchsize=None):
-            self.input_shape = (batchsize, 300, 300, 3)
-            self.__batchsize = batchsize
+        def __init__(self, batch_size=None):
+            self.input_shape = (batch_size, 300, 300, 3)
+            self.__batch_size = batch_size
 
         def predict(self, img):
-            return numpy.array([[1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0]]*self.__batchsize)
+            if self.__batch_size == 1:
+                return numpy.array([1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0])
+            return numpy.array([[1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0]]*self.__batch_size)
 
-    label = 'labels.pickle'
-    batchsize=5
-    model = test_model(batchsize=batchsize)
-    matrix = validate(model=model, vali_path=path, label=label, batchsize=batchsize)
-
-    print(repr(matrix))
-    print(matrix.report())
-    matrix.label_report()
+    model = test_model(batch_size=1)
+    submission(model, 'test.csv', test_path=path)
 
 if __name__=='__main__':
     main()
