@@ -15,7 +15,12 @@ from keras.applications.vgg16 import VGG16
 from keras.applications.inception_v3 import InceptionV3
 from keras.utils import multi_gpu_model
 from keras.callbacks import Callback
-from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
+from keras.models import load_model
+from iMfashion_ImgBatchLoader import ImgBatchLoader
+
+def model_continue(model_path):
+    model = load_model(model_path, compile=False)
+    return model
 
 def model_IncepV3_iM():
     base_model = InceptionV3(weights='imagenet', include_top=False)
@@ -123,8 +128,8 @@ def main():
     vali_path = '/rawdata/FGVC5_iMfashion/imgs_validation/'
     vali_label = '/archive/iMfashion/labels/labels_validation.pickle'
 
-    s = model_trainner(model=model_IncepV3_iM(),
-                       model_name='IncepV3_0504_iM2',
+    s = model_trainner(model=model_continue('/archive/iMfashion/models/IncepV3_0504_iM1.h5'),
+                       model_name='IncepV3_0506_iM2',
                        train_path=train_path,
                        train_label=train_label,
                        vali_path=vali_path,
@@ -134,7 +139,7 @@ def main():
     s.fit(optimizer='rmsprop',
           loss='binary_crossentropy',
           batch_size=128,
-          epoch=5,
+          epoch=3,
           multi_gpu=2,
           log=True
           )
