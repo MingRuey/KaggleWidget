@@ -11,8 +11,10 @@ import os
 import logging
 from keras.models import Model
 from keras.layers import Dense, GlobalAveragePooling2D
-from keras.applications.vgg16 import VGG16
+from keras.applications.vgg19 import VGG19
 from keras.applications.inception_v3 import InceptionV3
+from keras.applications.inception_resnet_v2 import InceptionResNetV2
+from keras.applications.xception import Xception
 from keras.utils import multi_gpu_model
 from keras.callbacks import Callback
 from keras.models import load_model
@@ -21,6 +23,31 @@ from iMfashion_ImgBatchLoader import ImgBatchLoader
 def model_continue(model_path):
     model = load_model(model_path, compile=False)
     return model
+
+def model_IncetionResNetV2_iM():
+    base_model = InceptionResNetV2(weights='imagenet', include_top=False)
+
+    # flatten vs avgPooling: https://github.com/keras-team/keras/issues/8470
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    predictions = Dense(228, activation='sigmoid')(x)
+
+    model = Model(inputs=base_model.input, outputs=predictions)
+    return model
+    
+def model_Xception_iM():
+    base_model = Xception(weights='imagenet', include_top=False)
+
+    # flatten vs avgPooling: https://github.com/keras-team/keras/issues/8470
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    predictions = Dense(228, activation='sigmoid')(x)
+
+    model = Model(inputs=base_model.input, outputs=predictions)
+    return model
+
 
 def model_IncepV3_iM():
     base_model = InceptionV3(weights='imagenet', include_top=False)
@@ -34,8 +61,8 @@ def model_IncepV3_iM():
     model = Model(inputs=base_model.input, outputs=predictions)
     return model
 
-def model_VGG16():
-    base_model = VGG16(weights='imagenet', include_top=False)
+def model_VGG19():
+    base_model = VGG19(weights='imagenet', include_top=False)
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
     x = Dense(1024, activation='relu')(x)
@@ -102,15 +129,15 @@ class model_trainner():
         self.model.save(self.model_name + '.h5')
         fw = open(self.model_name + '.info', 'w')
         fw.writelines(['Filename: {0}'.format(self.model_name + '.h5'), \
-                       'Model Discription:', \
-                       'Base Model:',\
-                       'Top Model:',\
-                       'Optimizer: {0}'.format(optimizer),\
-                       'Loss function: {0}'.format(loss),\
-                       'Train Data: {0}'.format(self.train_path),\
-                       'Validation Data: {0}'.format(self.vali_path),\
-                       'Fit: batchsize={0}; epoch={1}'.format(batch_size, epoch), \
-                       'Scores: train loss=; vali loss=']
+                       '\nModel Discription:', \
+                       '\nBase Model:',\
+                       '\nTop Model:',\
+                       '\nOptimizer: {0}'.format(optimizer),\
+                       '\nLoss function: {0}'.format(loss),\
+                       '\nTrain Data: {0}'.format(self.train_path),\
+                       '\nValidation Data: {0}'.format(self.vali_path),\
+                       '\nFit: batchsize={0}; epoch={1}'.format(batch_size, epoch), \
+                       '\nScores: train loss=; vali loss=']
                       )
         fw.close()
 
@@ -128,8 +155,9 @@ def main():
     vali_path = '/rawdata/FGVC5_iMfashion/imgs_validation/'
     vali_label = '/archive/iMfashion/labels/labels_validation.pickle'
 
-    s = model_trainner(model=model_continue('/archive/iMfashion/models/IncepV3_0504_iM1.h5'),
-                       model_name='IncepV3_0506_iM2',
+    s = model_trainner(#model=model_continue('/archive/iMfashion/models/IncepV3_0504_iM1.h5'),
+                       model = model_VGG19(),
+                       model_name='VGG19_0508_iM4',
                        train_path=train_path,
                        train_label=train_label,
                        vali_path=vali_path,
@@ -138,8 +166,9 @@ def main():
 
     s.fit(optimizer='rmsprop',
           loss='binary_crossentropy',
-          batch_size=128,
-          epoch=3,
+          #batch_size=128,
+          batch_size=32,
+          epoch=5,
           multi_gpu=2,
           log=True
           )
