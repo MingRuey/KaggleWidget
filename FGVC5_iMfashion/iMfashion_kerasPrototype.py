@@ -16,7 +16,28 @@ from keras.applications.inception_v3 import InceptionV3
 from keras.utils import multi_gpu_model
 from keras.callbacks import Callback
 from keras.models import load_model
-from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
+import numpy as np
+try:
+    from iMfashion_ImgBatchLoader import ImgBatchLoader
+except ImportError:
+    from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
+    raise ImportError('WHY YOU HAVE TO IMPORT LIKE THIS IN SAME FOLDER')
+
+# model.save() cause some problem when using multi GPU
+# Checkpoint use model.save() ...
+class newModelCheckpoint(Callback):
+
+    def __init__(self, model, path):
+        self.model = model
+        self.path = path
+        self.best_loss = np.inf
+
+    def on_epoch_end(self, epoch, logs=None):
+        val_loss = logs['val_loss']
+        if val_loss < self.best_loss:
+            print("\nvali loss from {} to {} cover old model".format(self.best_loss, val_loss))
+            self.model.save_weights(self.path, overwrite=True)
+            self.best_loss = val_loss
 
 def model_continue(model_path):
     model = load_model(model_path, compile=False)
@@ -113,10 +134,14 @@ class model_trainner():
                             use_multiprocessing=True,
                             workers=workers,
                             max_queue_size=queue,
-                            callbacks=[history]
+                            callbacks=[history, newModelCheckpoint(self.model, self.model_name + '_weight.h5')]
                             )
 
-        self.model.save(self.model_name + '.h5')
+        # load weight and save model
+        # output_model = multi_gpu_model(self.model, gpus=multi_gpu) if multi_gpu else self.model
+        # output_model.load_weights(self.model_name + '_weight.h5')
+        # output_model.save(self.model_name + '.h5')
+
         fw = open(self.model_name + '.info', 'w')
         fw.writelines(['Filename: {0}   \n'.format(self.model_name + '.h5'), \
                        'Model Discription: \n', \
@@ -143,18 +168,21 @@ def main():
     vali_path = '/rawdata/FGVC5_iMfashion/imgs_validation/'
     vali_label = '/archive/iMfashion/labels/labels_validation.pickle'
 
-    s = model_trainner(model=model_continue('/archive/iMfashion/models/IncepV3_0504_iM1.h5'),
-                       model_name='IncepV3_0508_iM3',
-                       train_path=train_path,
-                       train_label=train_label,
+    s = model_trainner(#model=model_continue('/archive/iMfashion/models/IncepV3_0504_iM1.h5'),
+                       model=model_IncepV3_withDrop(),
+                       model_name='IncepV3+drop_0512_iM5',
+                       #train_path=train_path,
+                       #train_label=train_label,
+                       train_path=vali_path,
+                       train_label=vali_label,
                        vali_path=vali_path,
-                       vali_label=vali_label,
+                       vali_label=vali_label
                        )
 
     s.fit(optimizer='rmsprop',
           loss='binary_crossentropy',
           batch_size=128,
-          epoch=3,
+          epoch=2,
           multi_gpu=2,
           log=True
           )
