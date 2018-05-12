@@ -17,23 +17,27 @@ from keras.utils import multi_gpu_model
 from keras.callbacks import Callback
 from keras.models import load_model
 import numpy as np
-try:
-    from iMfashion_ImgBatchLoader import ImgBatchLoader
-except ImportError:
-    from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
-    raise ImportError('WHY YOU HAVE TO IMPORT LIKE THIS IN SAME FOLDER')
+from iMfashion_ImgBatchLoader import ImgBatchLoader
 
 # model.save() cause some problem when using multi GPU
 # Checkpoint use model.save() ...
-class newModelCheckpoint(Callback):
 
+class _train_history(Callback):
     def __init__(self, model, path):
         self.model = model
         self.path = path
         self.best_loss = np.inf
-
-    def on_epoch_end(self, epoch, logs=None):
+    def on_train_begin(self, logs={}):
+        self.batch_losses = []
+        self.epoch_val_losses = []
+        self.epoch_losses = []
+    def on_batch_end(self, batch, logs={}):
+        self.batch_losses.append(logs.get('loss'))
+    def on_epoch_end(self, epoch, logs={}):
+        self.epoch_val_losses.append(logs.get('val_loss'))
+        self.epoch_losses.append(logs.get('loss'))
         val_loss = logs['val_loss']
+        # self.model.save_weights("test_v3_drop_{}.h5".format(epoch))
         if val_loss < self.best_loss:
             print("\nvali loss from {} to {} cover old model".format(self.best_loss, val_loss))
             self.model.save_weights(self.path, overwrite=True)
@@ -78,16 +82,6 @@ def model_VGG16():
     model = Model(inputs=base_model.input, outputs=predictions)
     return model
 
-class _train_history(Callback):
-    def on_train_begin(self, logs={}):
-        self.batch_losses = []
-        self.epoch_val_losses = []
-        self.epoch_losses = []
-    def on_batch_end(self, batch, logs={}):
-        self.batch_losses.append(logs.get('loss'))
-    def on_epoch_end(self, epoch, logs={}):
-        self.epoch_val_losses.append(logs.get('val_loss'))
-        self.epoch_losses.append(logs.get('loss'))
 
 class model_trainner():
 
@@ -120,7 +114,7 @@ class model_trainner():
         target.compile(optimizer=optimizer, loss=loss)
         target.summary()
 
-        history = _train_history()
+        history = _train_history(self.model, self.model_name+'_weight.h5')
         train_steps = len([i for i in os.listdir(self.train_path) if i.lower().endswith('.jpg')])/batch_size
         vali_steps = len([i for i in os.listdir(self.vali_path) if i.lower().endswith('.jpg')])/batch_size
 
@@ -134,13 +128,14 @@ class model_trainner():
                             use_multiprocessing=True,
                             workers=workers,
                             max_queue_size=queue,
-                            callbacks=[history, newModelCheckpoint(self.model, self.model_name + '_weight.h5')]
+                            callbacks=[history]
                             )
 
         # load weight and save model
-        # output_model = multi_gpu_model(self.model, gpus=multi_gpu) if multi_gpu else self.model
-        # output_model.load_weights(self.model_name + '_weight.h5')
-        # output_model.save(self.model_name + '.h5')
+        output_model = multi_gpu_model(self.model, gpus=multi_gpu) if multi_gpu else self.model
+        #output_model.load_weights(self.model_name + '_weight.h5')
+        output_model.load_weights(self.model_name+'_weight.h5')
+        self.model.save(self.model_name + '.h5')
 
         fw = open(self.model_name + '.info', 'w')
         fw.writelines(['Filename: {0}   \n'.format(self.model_name + '.h5'), \
@@ -168,13 +163,11 @@ def main():
     vali_path = '/rawdata/FGVC5_iMfashion/imgs_validation/'
     vali_label = '/archive/iMfashion/labels/labels_validation.pickle'
 
-    s = model_trainner(#model=model_continue('/archive/iMfashion/models/IncepV3_0504_iM1.h5'),
-                       model=model_IncepV3_withDrop(),
-                       model_name='IncepV3+drop_0512_iM5',
-                       #train_path=train_path,
-                       #train_label=train_label,
-                       train_path=vali_path,
-                       train_label=vali_label,
+    s = model_trainner(model=model_continue('/archive/iMfashion/models/IncepV3+drop_0513_iM5.h5'),
+                       #model=model_IncepV3_withDrop(),
+                       model_name='IncepV3+drop_0514_iM6',
+                       train_path=train_path,
+                       train_label=train_label,
                        vali_path=vali_path,
                        vali_label=vali_label
                        )
@@ -182,7 +175,7 @@ def main():
     s.fit(optimizer='rmsprop',
           loss='binary_crossentropy',
           batch_size=128,
-          epoch=2,
+          epoch=10,
           multi_gpu=2,
           log=True
           )
