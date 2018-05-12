@@ -10,19 +10,32 @@ https://www.kaggle.com/c/imaterialist-challenge-fashion-2018
 import os
 import logging
 from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D
+from keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from keras.applications.vgg16 import VGG16
 from keras.applications.inception_v3 import InceptionV3
 from keras.utils import multi_gpu_model
 from keras.callbacks import Callback
 from keras.models import load_model
-from iMfashion_ImgBatchLoader import ImgBatchLoader
+from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
 
 def model_continue(model_path):
     model = load_model(model_path, compile=False)
     return model
 
-def model_IncepV3_iM():
+def model_IncepV3_withDrop():
+    base_model = InceptionV3(weights='imagenet', include_top=False)
+
+    # flatten vs avgPooling: https://github.com/keras-team/keras/issues/8470
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    x = Dropout(0.8)(x)
+    predictions = Dense(228, activation='sigmoid')(x)
+
+    model = Model(inputs=base_model.input, outputs=predictions)
+    return model
+
+def model_IncepV3():
     base_model = InceptionV3(weights='imagenet', include_top=False)
 
     # flatten vs avgPooling: https://github.com/keras-team/keras/issues/8470
@@ -71,7 +84,7 @@ class model_trainner():
                             filename='model_trainner.log', level=logging.INFO
                             )
 
-    def fit(self, optimizer, loss, batch_size, epoch, multi_gpu=2, workers=16, queue=10, log=True):
+    def fit(self, optimizer, loss, batch_size, epoch, augmenting=False, multi_gpu=2, workers=16, queue=10, log=True):
         assert batch_size >= 1 and batch_size%1==0, 'Batchsize must be natural numbers.'
         assert epoch>=1 and epoch%1==0, 'Epoch must be natural numbers.'
         if log:
@@ -89,9 +102,13 @@ class model_trainner():
         history = _train_history()
         train_steps = len([i for i in os.listdir(self.train_path) if i.lower().endswith('.jpg')])/batch_size
         vali_steps = len([i for i in os.listdir(self.vali_path) if i.lower().endswith('.jpg')])/batch_size
+
+        if augmenting:
+            train_steps *= 8  # rotate with 0, 90, 180 and 270 degree, could also being flipped or not.
+
         target.fit_generator(validation_steps=vali_steps,
                             steps_per_epoch=train_steps, epochs=epoch,
-                            generator=imgs_train.generator(batch_size),
+                            generator=imgs_train.generator(batch_size, augmenting=augmenting),
                             validation_data=imgs_vali.generator(batch_size),
                             use_multiprocessing=True,
                             workers=workers,
@@ -101,16 +118,16 @@ class model_trainner():
 
         self.model.save(self.model_name + '.h5')
         fw = open(self.model_name + '.info', 'w')
-        fw.writelines(['Filename: {0}'.format(self.model_name + '.h5'), \
-                       'Model Discription:', \
-                       'Base Model:',\
-                       'Top Model:',\
-                       'Optimizer: {0}'.format(optimizer),\
-                       'Loss function: {0}'.format(loss),\
-                       'Train Data: {0}'.format(self.train_path),\
-                       'Validation Data: {0}'.format(self.vali_path),\
-                       'Fit: batchsize={0}; epoch={1}'.format(batch_size, epoch), \
-                       'Scores: train loss=; vali loss=']
+        fw.writelines(['Filename: {0}   \n'.format(self.model_name + '.h5'), \
+                       'Model Discription: \n', \
+                       'Base Model: \n',\
+                       'Top Model:  \n',\
+                       'Optimizer: {0}  \n'.format(optimizer),\
+                       'Loss function: {0} \n'.format(loss),\
+                       'Train Data: {0} \n'.format(self.train_path),\
+                       'Validation Data: {0} \n'.format(self.vali_path),\
+                       'Fit: batchsize={0}; epoch={1} \n'.format(batch_size, epoch), \
+                       'Scores: train loss=; vali loss= \n']
                       )
         fw.close()
 
@@ -119,8 +136,6 @@ class model_trainner():
             logging.info(history.epoch_losses)
             logging.info(history.epoch_val_losses)
 
-
-import matplotlib.pyplot as plt
 def main():
 
     train_path = '/rawdata/FGVC5_iMfashion/imgs_train/'
@@ -129,7 +144,7 @@ def main():
     vali_label = '/archive/iMfashion/labels/labels_validation.pickle'
 
     s = model_trainner(model=model_continue('/archive/iMfashion/models/IncepV3_0504_iM1.h5'),
-                       model_name='IncepV3_0506_iM2',
+                       model_name='IncepV3_0508_iM3',
                        train_path=train_path,
                        train_label=train_label,
                        vali_path=vali_path,
@@ -146,6 +161,7 @@ def main():
 
     # summarize history for loss
     def plot_history(fit_history):
+        import matplotlib.pyplot as plt
         # list all data in history
         # print(fit_history.history.keys())
         # plt.plot(fit_history.history['loss'])
@@ -159,7 +175,7 @@ def main():
         plt.savefig('lost.png')
 
     # plot training process
-    #plot_history(history)
+    # plot_history(history)
 
 if __name__=='__main__':
     main()

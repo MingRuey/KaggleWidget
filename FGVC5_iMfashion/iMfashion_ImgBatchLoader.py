@@ -10,7 +10,7 @@ https://www.kaggle.com/c/imaterialist-challenge-fashion-2018
 
 import numpy
 import os.path
-import imageio
+import cv2
 import pickle
 import logging
 from random import shuffle as rndshuffle
@@ -30,7 +30,7 @@ class ImgBatchLoader():
 
 
     # Generator for loading and resizing images:
-    def __load_img(self, shuffle=True):
+    def __load_img(self, shuffle=True, augmenting=False):
         files = os.listdir(self._path)
         if shuffle:
             rndshuffle(files)
@@ -39,9 +39,24 @@ class ImgBatchLoader():
             if file.lower().endswith('.jpg'):
                 imgid = int(file[:-4])
                 try:
-                    img = imageio.imread(os.path.join(self._path, file))
-                    img = resize(img, self._size, mode='edge', preserve_range = True).astype('uint8')
+                    img = cv2.imread(os.path.join(self._path, file))[...,::-1] # BGR by default, convert it into RGB
+                    img = cv2.resize(img, (self._size[0],self._size[0]))
                     label = self._labels[numpy.where(self._labels[:,0]==imgid)][0,1:]
+
+                    # If augmenting keyword set True, yield 8x more data.
+                    # Including rotation with degree 0, 90, 180 and 270, and a flipped one each.
+                    if augmenting:
+                        for angle in (0, 90, 180, 270):
+                            for reflect in (False, True):
+                                s = img.copy()
+                                w, h = img.shape[0], img.shape[1]
+                                if angle:
+                                    M = cv2.getRotationMatrix2D((w/2, h/2), angle=angle, scale=1.0)
+                                    s = cv2.warpAffine(s, M, (w, h))
+                                if reflect:
+                                    s = cv2.flip(s, 1)
+                                yield s, label
+
                     yield img, label
                 except (IOError, ValueError) as err:
                     logging.warning('While loading {0}: {1}'.format(file, err))
@@ -50,14 +65,14 @@ class ImgBatchLoader():
 
 
     # A batch-data generator, if epoch not set, it will loops infinitely
-    def generator(self, batch_size, shuffle=True, epoch=None, avgbatch=False):
+    def generator(self, batch_size, shuffle=True, epoch=None, avgbatch=False, augmenting=False):
         assert batch_size >= 1 and batch_size%1==0, 'Batch size must be natural numbers.'
         assert (not epoch) or (epoch>=1 and epoch%1==0), 'Epoch must be natural numbers.'
 
         epoch_count = 0
         while True:
             # begining of an epoch: loading imgs
-            self._imgs = self.__load_img(shuffle=shuffle)
+            self._imgs = self.__load_img(shuffle=shuffle, augmenting=augmenting)
 
             # start collecting one batch
             batch_count = 0
@@ -91,7 +106,7 @@ def main():
         label = numpy.zeros((10, 15))
 
         for i in range(10):
-            imageio.imwrite(path + str(i) + '.jpg', 10 * (i + 1) * numpy.ones((300, 300, 3), dtype='uint8'))
+            cv2.imwrite(path + str(i) + '.jpg', 10 * (i + 1) * numpy.ones((300, 300, 3), dtype='uint8'))
             label[i, 0] = i
             label[i, i + 1] = 1
 
