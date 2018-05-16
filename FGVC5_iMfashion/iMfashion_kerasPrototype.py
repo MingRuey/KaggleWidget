@@ -47,19 +47,6 @@ def model_continue(model_path):
     model = load_model(model_path, compile=False)
     return model
 
-def model_IncepV3_withDrop():
-    base_model = InceptionV3(weights='imagenet', include_top=False)
-
-    # flatten vs avgPooling: https://github.com/keras-team/keras/issues/8470
-    x = base_model.output
-    x = GlobalAveragePooling2D()(x)
-    x = Dense(1024, activation='relu')(x)
-    x = Dropout(0.8)(x)
-    predictions = Dense(228, activation='sigmoid')(x)
-
-    model = Model(inputs=base_model.input, outputs=predictions)
-    return model
-
 def model_IncepV3():
     base_model = InceptionV3(weights='imagenet', include_top=False)
 
@@ -67,6 +54,18 @@ def model_IncepV3():
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
     x = Dense(1024, activation='relu')(x)
+    predictions = Dense(228, activation='sigmoid')(x)
+
+    model = Model(inputs=base_model.input, outputs=predictions)
+    return model
+
+def model_IncepV3_withDrop():
+    base_model = InceptionV3(weights='imagenet', include_top=False)
+
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    x = Dropout(0.8)(x)
     predictions = Dense(228, activation='sigmoid')(x)
 
     model = Model(inputs=base_model.input, outputs=predictions)

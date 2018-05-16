@@ -14,7 +14,6 @@ import cv2
 import pickle
 import logging
 from random import shuffle as rndshuffle
-from skimage.transform import resize
 
 
 class ImgBatchLoader():
@@ -40,7 +39,7 @@ class ImgBatchLoader():
                 imgid = int(file[:-4])
                 try:
                     img = cv2.imread(os.path.join(self._path, file))[...,::-1] # BGR by default, convert it into RGB
-                    img = cv2.resize(img, (self._size[0],self._size[0]))
+                    img = cv2.resize(img, (self._size[0],self._size[1]))
                     label = self._labels[numpy.where(self._labels[:,0]==imgid)][0,1:]
 
                     # If augmenting keyword set True, yield 8x more data.

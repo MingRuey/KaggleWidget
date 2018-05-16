@@ -9,11 +9,10 @@ precision, recall, F1 score, and performance on each label also.
 
 import os
 import numpy
-import imageio
 import logging
 from skimage.transform import resize
 from matplotlib import pyplot as plt
-from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
+from iMfashion_ImgBatchLoader import ImgBatchLoader
 
 # Eval_matrix is used to record the current accuracy of prediction,
 # since predictions can not/should not make on the whole validation set at once,
