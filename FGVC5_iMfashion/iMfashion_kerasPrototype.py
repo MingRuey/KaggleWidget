@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Created on Apr. 29. 2018.
 @author: cchsia

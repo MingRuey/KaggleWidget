@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Created on May. 02. 2018
 @author: MRChou

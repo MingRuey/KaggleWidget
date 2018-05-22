@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Created on Fri May 15 07:00:00 2018
 @author: MRChou
@@ -59,13 +60,14 @@ def load_label(path, num_of_classes):
 
 # Mostly copy-paste from the source mentioned above.
 # Using multi-threading to process the detection.
+STORE = '/archive/iMfashion/preprocess/imgs_test/'
 def get_inferences(path, graph, que, num_of_threads):
-
     def img_loader():
         # load image:
         for file in os.listdir(path):
             if file.lower().endswith('.jpg'):
-                yield (file, cv2.imread(os.path.join(path, file))[..., ::-1])
+                if not os.path.isfile(os.path.join(STORE, file)):  # if the file already exists, pass it.
+                    yield (file, cv2.imread(os.path.join(path, file))[..., ::-1])
 
     os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
     with graph.as_default():
@@ -107,7 +109,7 @@ def get_inferences(path, graph, que, num_of_threads):
 # Return the grabbed image --
 # get detection boxes containing people by pre-train model, then use grabcut in openCV.
 class GrabAndSave(threading.Thread):
-    def __init__(self, que, store_path):
+    def __init__(self, que, store_path=STORE):
         super(GrabAndSave, self).__init__()
         self._que = que
         self.path = store_path
@@ -144,14 +146,14 @@ class GrabAndSave(threading.Thread):
 def build_grab_processer(que, num_of_workers):
     workers = []
     for _ in range(num_of_workers):
-        worker = GrabAndSave(que, store_path='/archive/iMfashion/preprocess/imgs_train')
+        worker = GrabAndSave(que)
         worker.start()
         workers.append(worker)
     return workers
 
 
 def main():
-    imgs_path = '/rawdata/FGVC5_iMfashion/imgs_train/'
+    imgs_path = '/rawdata/FGVC5_iMfashion/imgs_test/'
     graph = '/archive/iMfashion/object_detection/ssd_mobilenet_v1_coco_2017_11_17/frozen_inference_graph.pb'
 
     # queue for data exchange between detection and grab
