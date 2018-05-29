@@ -14,6 +14,8 @@ from keras.models import Model
 from keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from keras.applications.vgg16 import VGG16
 from keras.applications.inception_v3 import InceptionV3
+from keras.applications.resnet50 import ResNet50
+from keras.applications.densenet import DenseNet169
 from keras.utils import multi_gpu_model
 from keras.callbacks import Callback
 from keras.models import load_model
@@ -70,6 +72,30 @@ def model_IncepV3_withDrop():
     x = GlobalAveragePooling2D()(x)
     x = Dense(1024, activation='relu')(x)
     x = Dropout(0.8)(x)
+    predictions = Dense(228, activation='sigmoid')(x)
+
+    model = Model(inputs=base_model.input, outputs=predictions)
+    return model
+
+
+def model_DenseNet169():
+    base_model = DenseNet169(weights='imagenet', include_top=False)
+
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    predictions = Dense(228, activation='sigmoid')(x)
+
+    model = Model(inputs=base_model.input, outputs=predictions)
+    return model
+
+
+def model_ResNet50():
+    base_model = ResNet50(weights='imagenet', include_top=False)
+
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
     predictions = Dense(228, activation='sigmoid')(x)
 
     model = Model(inputs=base_model.input, outputs=predictions)

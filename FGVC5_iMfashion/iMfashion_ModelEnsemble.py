@@ -90,7 +90,7 @@ def search_weight():
 def ensemble_submission():
     """Create submission with ensemble of given models and wieght"""
 
-    csv_name = 'submission_iM2-3-7-10-12-13.csv'
+    csv_name = 'submission2_iM2-3-7-10-12-13.csv'
 
     pkls = ['IncepV3_0506_iM2_test.pickle',
             'Xception_iM3_test.pickle',
@@ -100,7 +100,7 @@ def ensemble_submission():
             'Resnet50_0524_iM13_test.pickle'
             ]
 
-    weight = [0.35, 0.05, 0.05, 0.3, 0.05, 0.2]
+    weight = [0.4, 0.05, 0.05, 0.3, 0.05, 0.15]
     threshold = 0.2
 
     with open(csv_name, 'w') as f:
@@ -123,4 +123,4 @@ def ensemble_submission():
 
 
 if __name__ == '__main__':
-    search_weight()
+    ensemble_submission()
