@@ -4,7 +4,7 @@ import numpy
 import pickle
 import itertools
 from keras.models import load_model
-from iMfashion_ValidateModel import MultiModelPredict, submission, validate, eval_matrix
+from iMfashion_ValidateModel import eval_matrix
 
 
 MODEL_PATH = '/archive/iMfashion/models/'
@@ -74,7 +74,7 @@ def search_weight():
             for threshold in [0.08 + 0.03*i for i in range(11)]:
                 mat = numpy.zeros(label[:, 1:].shape)
                 for i, pkl in enumerate(pkls):
-                    predict = pickle.load(open(pkl, 'rb'))  # check if img id match
+                    predict = pickle.load(open(ENSEMBLE_PATH+pkl, 'rb'))  # check if img id match
                     if numpy.all(predict[:, 0] == label[:, 0]):
                         mat += predict[:, 1:]*weight[i]
                     else:
@@ -123,17 +123,4 @@ def ensemble_submission():
 
 
 if __name__ == '__main__':
-    ensemble_submission()
-
-# ensemble = MultiModelPredict(models)
-#
-# f = open('ensemble_eval_iM2-3-7-10-12-13.log', 'w')
-# s = validate(ensemble, vali_path=vali_path, label=vali_label, threshold=0.3, batch_size=3299)
-# f.write('Threshold : 0.3 \n')
-# f.write(s.report()+'\n')
-# s = validate(ensemble, vali_path=vali_path, label=vali_label, threshold=0.2, batch_size=3299)
-# f.write('Threshold : 0.2 \n')
-# f.write(s.report()+'\n')
-# s = validate(ensemble, vali_path=vali_path, label=vali_label, threshold=0.1, batch_size=3299)
-# f.write('Threshold : 0.1 \n')
-# f.write(s.report()+'\n')
+    search_weight()

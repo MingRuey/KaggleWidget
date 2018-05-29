@@ -15,19 +15,18 @@ from skimage.transform import resize
 from matplotlib import pyplot as plt
 from iMfashion_ImgBatchLoader import ImgBatchLoader
 
-# Eval_matrix is used to record the current accuracy of prediction,
-# since predictions can not/should not make on the whole validation set at once,
 
-# Accuracy is recorded by counting the total positives/true positives/false negatives via .update() method.
-# Use label_report/report method to get the final statistics.
 class eval_matrix(numpy.ndarray):
+    """eval_matrix is used to record the current accuracy of prediction,
+    with update() method to add new prediction.
+    and get_f1()/report() method to get/view the precision, recall and f1 score."""
 
     def __new__(cls, size=(0,0), dtype='uint32'):
         return numpy.ndarray.__new__(cls, [], dtype=dtype)
 
-    # With the prediction values and labels.
-    # Caculating the total positive, true positive and false negative.
     def update(self, predict, label):
+        """With the prediction values and labels.
+           Caculating the total positive, true positive and false negative."""
         assert predict.shape == label.shape, 'eval_matrix.update(): Shapes of prediction and label do not match.'
         if not self.ndim:
             self.resize((4, label.shape[1]), refcheck=False)
@@ -35,18 +34,18 @@ class eval_matrix(numpy.ndarray):
 
         p = predict >= 1
         l = label >= 1
-        if p.ndim !=1:
+        if p.ndim != 1:
             self[1, :] += p.sum(axis=0, dtype='uint32')  # total positive
-            self[2, :] += numpy.logical_and(p, l).sum(axis=0, dtype='uint32') # true positive
+            self[2, :] += numpy.logical_and(p, l).sum(axis=0, dtype='uint32')  # true positive
             self[3, :] += numpy.logical_and(numpy.logical_not(p), l).sum(axis=0, dtype='uint32')  # false negative
 
-        else: # update with only one data (i.e. only one row).
+        else:  # update with only one data (i.e. only one row).
             self[1, :] += p  # total positive
-            self[2, :] += numpy.logical_and(p, l) # true positive
-            self[3, :] += numpy.logical_and(numpy.logical_not(p), l) # false negative
+            self[2, :] += numpy.logical_and(p, l)  # true positive
+            self[3, :] += numpy.logical_and(numpy.logical_not(p), l)  # false negative
 
-    # Display the precision, recall of each label in bar chart.
     def label_report(self):
+        """Display the precision, recall of each label in bar chart."""
         fig, ax = plt.subplots()
         width = 0.05
 
@@ -61,30 +60,36 @@ class eval_matrix(numpy.ndarray):
         ax.set_xticks(self[0, :])
         ax.set_xticklabels((self[0, :]))
         ax.set_xlim([-0.5, max(self[0, :])+0.5])
-        ax.set_ylim([0,1.1])
+        ax.set_ylim([0, 1.1])
         ax.legend()
         fig.tight_layout()
         plt.show()
 
-    # Return the precision, recall and f1 score overvall
     def report(self):
-        p = self[2, :].sum() / self[1, :].sum()                 # precision over all labels
-        r = self[2, :].sum() / (self[3, :].sum()+self[2,:].sum()) # recall over all labels
-        f1 = 0 if p+r == 0 else 2*p*r/(p+r)                    # f1 over all labels
-        return "precision:{0:4.3f}, recall:{1:4.3f}  with F1 score:{2:4.3f}".format(p,r,f1)
+        """Return the full string of precision, recall and f1 score."""
+        return "precision:{0:4.3f}, recall:{1:4.3f}  with F1 score:{2:4.3f}".format(*self.get_f1())
 
-def validate(model, vali_path, label, input_shape=(300,300,3), threshold=0.2, batch_size=3299):
+    def get_f1(self):
+        """Return the precision, recall and f1 score."""
+        p = self[2, :].sum() / self[1, :].sum()                    # precision over all labels
+        r = self[2, :].sum() / (self[3, :].sum()+self[2, ].sum())  # recall over all labels
+        f1 = 0 if p+r == 0 else 2*p*r/(p+r)                        # f1 over all labels
+        return p, r, f1
 
-    eval = eval_matrix()
+
+def validate(model, vali_path, label, input_shape=(300, 300, 3), threshold=0.2, batch_size=3299):
+    """Return the eval_mat of model with imgs in *vali_path, and label path with *label"""
+    eval_mat = eval_matrix()
     batchs = ImgBatchLoader(img_path=vali_path, img_label=label, img_size=input_shape)
 
     for img, label in batchs.generator(batch_size=batch_size, epoch=1, shuffle=False):
-        eval.update(predict=(model.predict(img) > threshold), label=label)
+        eval_mat.update(predict=(model.predict(img) > threshold), label=label)
 
-    return eval
+    return eval_mat
 
-def submission(model, csv_name, test_path='/rawdata/FGVC5_iMfashion/imgs_test', img_size=(300,300,3), threshold=0.2):
 
+def submission(model, csv_name, test_path='/rawdata/FGVC5_iMfashion/imgs_test', img_size=(300, 300, 3), threshold=0.2):
+    """Create submission file for *model, based on images in *test_path with given *csv_name."""
     fw = open(csv_name, 'w')
     fw.write('image_id,label_id\n')
 
@@ -96,8 +101,8 @@ def submission(model, csv_name, test_path='/rawdata/FGVC5_iMfashion/imgs_test', 
                 img = resize(img, img_size, mode='edge', preserve_range=True).astype('uint8')
                 img = img[numpy.newaxis, :]
 
-                predict = numpy.where(model.predict(img) > threshold)[1] # are the indexs, index+1 = actual labels
-                fw.write( str(imgid)+','+ ''.join(str(i+1)+' ' for i in predict)+'\n' )
+                predict = numpy.where(model.predict(img) > threshold)[1]  # are the indexs, index+1 = actual labels
+                fw.write(str(imgid)+',' + ''.join(str(i+1) + ' ' for i in predict)+'\n')
             except (IOError, ValueError) as err:
                 logging.warning('While loading {0}: {1}'.format(file, err))
 

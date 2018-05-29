@@ -12,20 +12,22 @@ import os
 from iMfashion_JsonExtractLabel import urlfromjson
 from iMfashion_JsonGetImg import img_download
 
-# compare imgs in a given path with a image set,
-# return the difference
+
 def missing_imgs(imgs_path, imgs):
+    """ compare imgs in a given path with a image set, return the difference """
     imgs_in_target = set(i for i in os.listdir(imgs_path) if i.lower().endswith('.jpg'))
     imgs = set(imgs)
     return imgs - imgs_in_target
 
-# return the empty imgs in a given path
+
 def empty_imgs(imgs_path):
-    empty_imgs = set(i for i in os.listdir(imgs_path) \
-                            if i.lower().endswith('.jpg') and \
-                               os.stat(os.path.join(imgs_path,i)).st_size == 0)
-    return empty_imgs
-    
+    """return the empty imgs in a given path"""
+    empty = set(i for i in os.listdir(imgs_path)
+                if i.lower().endswith('.jpg') and
+                os.stat(os.path.join(imgs_path,i)).st_size == 0)
+    return empty
+
+
 def main():
     file = open('data_train.json')
     urls = urlfromjson(file)
@@ -51,6 +53,7 @@ def main():
             if not img_download(urls[imgid], img, output_path):
                 fail +=1
     print('Finish checking empty imgs, with {0} remaining empty'.format(fail))
-    
+
+
 if __name__=='__main__':
     main()

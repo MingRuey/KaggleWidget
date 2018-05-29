@@ -44,9 +44,11 @@ class _train_history(Callback):
             self.model.save_weights(self.path, overwrite=True)
             self.best_loss = val_loss
 
+
 def model_continue(model_path):
     model = load_model(model_path, compile=False)
     return model
+
 
 def model_IncepV3():
     base_model = InceptionV3(weights='imagenet', include_top=False)
@@ -60,6 +62,7 @@ def model_IncepV3():
     model = Model(inputs=base_model.input, outputs=predictions)
     return model
 
+
 def model_IncepV3_withDrop():
     base_model = InceptionV3(weights='imagenet', include_top=False)
 
@@ -72,6 +75,7 @@ def model_IncepV3_withDrop():
     model = Model(inputs=base_model.input, outputs=predictions)
     return model
 
+
 def model_VGG16():
     base_model = VGG16(weights='imagenet', include_top=False)
     x = base_model.output
@@ -83,7 +87,7 @@ def model_VGG16():
     return model
 
 
-class model_trainner():
+class model_trainner:
 
     def __init__(self, model, model_name, train_path, train_label, vali_path, vali_label):
         self.model = model
@@ -133,7 +137,7 @@ class model_trainner():
 
         # load weight and save model
         output_model = multi_gpu_model(self.model, gpus=multi_gpu) if multi_gpu else self.model
-        #output_model.load_weights(self.model_name + '_weight.h5')
+        # output_model.load_weights(self.model_name + '_weight.h5')
         output_model.load_weights(self.model_name+'_weight.h5')
         self.model.save(self.model_name + '.h5')
 
@@ -156,6 +160,7 @@ class model_trainner():
             logging.info(history.epoch_losses)
             logging.info(history.epoch_val_losses)
 
+
 def main():
 
     train_path = '/rawdata/FGVC5_iMfashion/imgs_train/'
@@ -164,7 +169,7 @@ def main():
     vali_label = '/archive/iMfashion/labels/labels_validation.pickle'
 
     s = model_trainner(model=model_continue('/archive/iMfashion/models/IncepV3+drop_0513_iM5.h5'),
-                       #model=model_IncepV3_withDrop(),
+                       # model=model_IncepV3_withDrop(),
                        model_name='IncepV3+drop_0514_iM6',
                        train_path=train_path,
                        train_label=train_label,

@@ -27,6 +27,7 @@ DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
 
 
 def download_graph(name):
+    """Download the graph with given name from DOWNLOAD_BASE"""
     model_name = name + '.tar.gz'
 
     opener = urllib.request.URLopener()
@@ -39,6 +40,7 @@ def download_graph(name):
 
 
 def load_detectiongraph(path):
+    """Load the graph with given path"""
     detection_graph = tf.Graph()
     with detection_graph.as_default():
         od_graph_def = tf.GraphDef()
@@ -61,9 +63,13 @@ def load_label(path, num_of_classes):
 # Mostly copy-paste from the source mentioned above.
 # Using multi-threading to process the detection.
 STORE = '/archive/iMfashion/preprocess/imgs_test/'
+
+
 def get_inferences(path, graph, que, num_of_threads):
+    """Put the results of object detection into que by multi-thred workers"""
+
     def img_loader():
-        # load image:
+        """load image from the *path"""
         for file in os.listdir(path):
             if file.lower().endswith('.jpg'):
                 if not os.path.isfile(os.path.join(STORE, file)):  # if the file already exists, pass it.
@@ -106,15 +112,15 @@ def get_inferences(path, graph, que, num_of_threads):
             t.join()
 
 
-# Return the grabbed image --
-# get detection boxes containing people by pre-train model, then use grabcut in openCV.
 class GrabAndSave(threading.Thread):
+    """GrabCut and store the image with grabcut rectangle are the object-detection boxes by get_inferences()."""
     def __init__(self, que, store_path=STORE):
         super(GrabAndSave, self).__init__()
         self._que = que
         self.path = store_path
 
     def run(self):
+        """Get the img and boxes from the que, and do the Grabcut"""
         while True:
             task = self._que.get()
             if task == 'done':
@@ -144,6 +150,7 @@ class GrabAndSave(threading.Thread):
 
 
 def build_grab_processer(que, num_of_workers):
+    """Create many GrabAndSave instance as multi-thread workers"""
     workers = []
     for _ in range(num_of_workers):
         worker = GrabAndSave(que)

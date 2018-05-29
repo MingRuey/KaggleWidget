@@ -16,8 +16,10 @@ import os
 import functools
 from multiprocessing import Pool
 
+
 def img_download(url, filename, path):
-    if not os.path.isfile(path+'\\'+filename): # if the file already exists, pass it.
+    """Download the image from the *url, store it as *filename inside the *path."""
+    if not os.path.isfile(path+'\\'+filename):  # if the file already exists, pass it.
         try:
             img = urllib.request.urlopen(url)
             img = img.read()
@@ -30,31 +32,36 @@ def img_download(url, filename, path):
             return None
     return True
 
+
 def urlgenerator_json(file):
+    """Create a generator of urls from a json file."""
     urls = urlfromjson(file)
     for imgid in urls:
         yield urls[imgid], str(imgid)+'.jpg'
-    
+
+
 def urlgenerator_ijson(file):
+    """Create a generator of urls from a json file, w/o loading entire json."""
     imgids = []
     urls = []
     for prefix, event, value in ijson.parse(file):
         try:
-            if prefix.lower().endswith('id'): # dev: test prefix before value is important!
+            if prefix.lower().endswith('id'):  # dev: test prefix before value is important!
                 imgids.append(str(value)+'.jpg')
-            elif value.startswith('https://contestimg.wish.com'): # this could raise AttributeError!
+            elif value.startswith('https://contestimg.wish.com'):  # this could raise AttributeError!
                 urls.append(value)
-        except AttributeError as err:# if value or prefix is not string
+        except AttributeError:  # if value or prefix is not string
             pass
         
         if len(urls) and len(imgids):
             yield (urls.pop(), imgids.pop())
     
-    if len(urls): # if there are not enough image IDs:
+    if len(urls):  # if there are not enough image IDs:
         for url in urls:
             filename = url.split('/')[-1] + \
-                       ('.jpg' if not url.split('/')[-1].endswith(('.jpeg','.jpg')) else '')
+                       ('.jpg' if not url.split('/')[-1].endswith(('.jpeg', '.jpg')) else '')
             yield url, filename
+
 
 def main():
     try:
@@ -76,5 +83,6 @@ def main():
     finally:
         file.close()
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()

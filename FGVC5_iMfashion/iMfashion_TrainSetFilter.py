@@ -17,7 +17,9 @@ import cupy
 import numpy
 
 
-def one_fold_dot(train_label, vali_label, device=0):
+def dot(train_label, vali_label, device=0):
+    """Return inner dot of train_label and vali_label, with rows of train_label normalized
+       Using GPU (by cupy module) to accelarate the process."""
     with cupy.cuda.Device(device):
         train_label = cupy.array(train_label, dtype='int8')
         vali_label = cupy.array(vali_label, dtype='int8')
@@ -43,14 +45,15 @@ def closest_imgs(train_label, vali_label, num_of_img, k_fold=4):
     fold_size = int(numpy.ceil(n / k_fold))
     for i in range(k_fold):
         step = [i*fold_size, (i+1)*fold_size] if i+1 != k_fold else [i*fold_size, n]
-        dis[step[0]:step[1]] = one_fold_dot(train_label=train_label[step[0]:step[1], :],
-                                            vali_label=vali_label,
-                                            device=0
-                                            )
+        dis[step[0]:step[1]] = dot(train_label=train_label[step[0]:step[1], :],
+                                   vali_label=vali_label,
+                                   device=0
+                                   )
     return dis.argsort()[-num_of_img:]
 
 
 def copy_imgs(imgs_path, ids, out_path):
+    """copy images in *imgs_path to the *out_path with file name given by ids"""
     for i in ids:
         img_name = str(i)+'.jpg'
         try:
