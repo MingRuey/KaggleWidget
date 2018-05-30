@@ -5,6 +5,7 @@ import pickle
 import itertools
 from keras.models import load_model
 from iMfashion_ValidateModel import eval_matrix
+from sklearn.tree import DecisionTreeRegressor
 
 
 MODEL_PATH = '/archive/iMfashion/models/'
@@ -23,6 +24,21 @@ model2 = 'IncepV3_0506_iM2.h5'  # iM2  F1 0.582
 model7 = 'IncepV3+drop_0514_iM7.h5'  # iM7  F1 0.539, IncepV3+dropout
 model10 = 'IncepV3_0520_iM10.h5'  # iM10 F1 0.573, Grabcut
 
+pkls_test = ['IncepV3_0506_iM2_test.pickle',
+             'Xception_iM3_test.pickle',
+             'IncepV3+drop_0514_iM7_test.pickle',
+             'IncepV3_0520_iM10_test.pickle',
+             'DenseNet169_0524_iM12_test.pickle',
+             'Resnet50_0524_iM13_test.pickle'
+             ]
+
+pkls_vali = ['IncepV3_0506_iM2.pickle',
+            'Xception_iM3.pickle',
+            'IncepV3+drop_0514_iM7.pickle',
+            'IncepV3_0520_iM10.pickle',
+            'DenseNet169_0524_iM12.pickle',
+            'Resnet50_0524_iM13.pickle'
+            ]
 
 def generate_predict():
     """Store the prediction of model on a image set into a pickle file"""
@@ -54,13 +70,7 @@ def search_weight():
     f_out = 'search_weights_for_iM2-3-7-10-12-13.txt'
     header = 'F1 of: [iM2, 3, 7, 10, 12, 13] are: [0.582, 0.544, 0.539, 0.573, 0.545, 0.560] \n'
 
-    pkls = ['IncepV3_0506_iM2.pickle',
-            'Xception_iM3.pickle',
-            'IncepV3+drop_0514_iM7.pickle',
-            'IncepV3_0520_iM10.pickle',
-            'DenseNet169_0524_iM12.pickle',
-            'Resnet50_0524_iM13.pickle'
-            ]
+    pkls = pkls_vali
 
     label = pickle.load(open(vali_label, 'rb'))
 
@@ -87,20 +97,33 @@ def search_weight():
                         ))
 
 
-def ensemble_submission():
+def rulebased_treeregressor(weight, **tree_kwargs):
+    """Return a tree that direct fits ensemble model output and vali set labels."""
+    reg = DecisionTreeRegressor(**tree_kwargs)
+
+    label = pickle.load(open(vali_label, 'rb'))
+    pkls = pkls_vali
+
+    mat = numpy.zeros(label[:, 1:].shape)
+    for i, pkl in enumerate(pkls):
+        predict = pickle.load(open(ENSEMBLE_PATH+pkl, 'rb'))  # check if img id match
+        if numpy.all(predict[:, 0] == label[:, 0]):
+            mat += predict[:, 1:]*weight[i]
+        else:
+            raise ValueError('{0}: label id does not match'.format(pkl))
+
+    reg.fit(mat, label[:, 1:])
+    return reg
+
+
+def ensemble_submission(rule_base_modified=False):
     """Create submission with ensemble of given models and wieght"""
 
-    csv_name = 'submission2_iM2-3-7-10-12-13.csv'
+    csv_name = 'submission5_iM2-3-7-10-12-13_withTreeReg.csv'
 
-    pkls = ['IncepV3_0506_iM2_test.pickle',
-            'Xception_iM3_test.pickle',
-            'IncepV3+drop_0514_iM7_test.pickle',
-            'IncepV3_0520_iM10_test.pickle',
-            'DenseNet169_0524_iM12_test.pickle',
-            'Resnet50_0524_iM13_test.pickle'
-            ]
+    pkls = pkls_test
 
-    weight = [0.4, 0.05, 0.05, 0.3, 0.05, 0.15]
+    weight = [0.35, 0.05, 0.05, 0.3, 0.05, 0.2]
     threshold = 0.2
 
     with open(csv_name, 'w') as f:
@@ -112,6 +135,12 @@ def ensemble_submission():
             if not('mat' in locals()):
                 mat = numpy.zeros(predict[:, 1:].shape)
             mat += predict[:, 1:] * weight[i]
+
+        if rule_base_modified:
+            tree = rulebased_treeregressor(weight, max_depth=20, criterion='mse')
+            tree_predict = tree.predict(mat)
+            mat[numpy.where(tree_predict > 0.99)] = 1  # Tree regressor says it's very likely
+            mat[numpy.where(tree_predict < 0.01)] = 0  # Tree regressor says it's very unlikly
 
         for n, row in enumerate(mat):
             imgid = int(predict[n, 0])
