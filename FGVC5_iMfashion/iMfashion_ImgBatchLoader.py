@@ -92,33 +92,3 @@ class ImgBatchLoader:
             epoch_count += 1
             if epoch and epoch_count == epoch:
                 break
-
-
-# ---
-# Test the module
-def main():
-    path = '/home/mrchou/code/KaggleWidget/'
-
-    def test():
-        # create test images and pickle file
-        label = numpy.zeros((10, 15))
-
-        for i in range(10):
-            cv2.imwrite(path + str(i) + '.jpg', 10 * (i + 1) * numpy.ones((300, 300, 3), dtype='uint8'))
-            label[i, 0] = i
-            label[i, i + 1] = 1
-
-        fw = open(path + 'labels.pickle', 'wb')
-        pickle.dump(label, fw)
-        fw.close()
-
-    test()
-    s = ImgBatchLoader(img_path=path, img_label='labels.pickle')
-    for i in s.generator(2, epoch=2, shuffle=True):
-        print('label 0: ', i[1][0])
-        print('img_0', i[0][0, 0, 0])
-        print('label 1: ', i[1][1])
-        print('img_1', i[0][1, 0, 0])
-
-if __name__=='__main__':
-    main()

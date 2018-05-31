@@ -12,6 +12,8 @@ https://www.kaggle.com/c/avito-demand-prediction/
 import pandas
 
 PATH = '/archive/Avito/russian_translation/'
+
+
 def russian_to_en(df_data):
     """Inplace translation for a dataframe from Russian to English"""
     tranlate_file = {'region':  'russian_region_names_in_english.csv',
@@ -34,7 +36,8 @@ def russian_to_en(df_data):
             convert = {row['rus']: row['en'] for index, row in file.iterrows()}
             
             # translate column into English
-            df_data[col] = df_data[col].map(convert, na_action = 'ignore')
+            df_data[col] = df_data[col].map(convert, na_action='ignore')
+
 
 def main():
     files = ['train.csv', 'train_active.csv',
@@ -48,5 +51,6 @@ def main():
         russian_to_en(df_data)
         df_data.to_pickle(output_path+file[:-4]+'.pickle')
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()
