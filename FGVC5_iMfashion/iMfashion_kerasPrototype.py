@@ -229,5 +229,6 @@ def main():
     # plot training process
     # plot_history(history)
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()
