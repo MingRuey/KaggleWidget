@@ -152,14 +152,14 @@ class model_trainner:
             train_steps *= 8  # rotate with 0, 90, 180 and 270 degree, could also being flipped or not.
 
         target.fit_generator(validation_steps=vali_steps,
-                            steps_per_epoch=train_steps, epochs=epoch,
-                            generator=imgs_train.generator(batch_size, augmenting=augmenting),
-                            validation_data=imgs_vali.generator(batch_size),
-                            use_multiprocessing=True,
-                            workers=workers,
-                            max_queue_size=queue,
-                            callbacks=[history]
-                            )
+                             steps_per_epoch=train_steps, epochs=epoch,
+                             generator=imgs_train.generator(batch_size, augmenting=augmenting),
+                             validation_data=imgs_vali.generator(batch_size),
+                             use_multiprocessing=True,
+                             workers=workers,
+                             max_queue_size=queue,
+                             callbacks=[history]
+                             )
 
         # load weight and save model
         output_model = multi_gpu_model(self.model, gpus=multi_gpu) if multi_gpu else self.model

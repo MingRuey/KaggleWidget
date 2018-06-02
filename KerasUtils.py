@@ -24,15 +24,17 @@ class ImgLabelLoader:
     """Used to generate (img, label) pairs for keras fit.generator"""
 
     def __init__(self, imgs=(), labels=(), img_size=(300, 300, 3)):
+        self.num_of_samples = 0
         self.train_samples = self._form_train(imgs, labels)
         self.img_size = img_size
 
-    @staticmethod
-    def _form_train(imgs, labels):
+    def _form_train(self, imgs, labels):
         """turn images and labels into a list of named tuples DATA"""
         samples = []
         for img in zip(imgs, labels):
             samples.append(DATA(*img))
+
+        self.num_of_samples = len(samples)
         return samples
 
     def update_samples(self, imgs, labels):
@@ -40,9 +42,6 @@ class ImgLabelLoader:
 
     def labelshape(self):
         return self.train_samples[0].label.shape
-
-    def num_of_samples(self):
-        return len(self.train_samples)
 
     def _one_epoch(self, *, shuffle=False, augment=False):
         """Generator of one epoch of train_samples"""
@@ -53,7 +52,7 @@ class ImgLabelLoader:
         for sample in samples:
             try:
                 img = imread(sample.img_path)[..., ::-1]  # from BGR to RGB.
-            except (IOError, ValueError) as err:
+            except (IOError, ValueError, TypeError) as err:
                 logging.warning('Loading {0}: {1}'.format(sample.img_path, err))
             else:
                 img = resize(img, (self.img_size[0], self.img_size[1]))
@@ -112,9 +111,9 @@ class _TrainHistory(Callback):
         self.model = model
         self.path = path
         self.best_loss = np.inf
-        self.batch_losses = []
-        self.epoch_val_losses = []
-        self.epoch_losses = []
+        self.batch_losses = None
+        self.epoch_val_losses = None
+        self.epoch_losses = None
 
     def on_train_begin(self, logs=None):
         self.batch_losses = []
@@ -146,15 +145,25 @@ class KerasModelTrainner:
         self.model_name = model_name
         self.train_loader = train_loader
         self.vali_loader = vali_loader
+        self.target = None
+        self._multigpu = True
         self.optimizer = None
         self.loss = None
+        self.batchsize = None
+        self.epoch = None
 
     def compile(self, *, optimizer, loss, multi_gpu=True):
         """Compile the model with gpu setting"""
+        self._multigpu = multi_gpu
         if multi_gpu:
-            self.model = multi_gpu_model(self.model, gpus=2)
-        self.model.compile(optimizer=optimizer, loss=loss)
-        self.model.summary()
+            self.target = multi_gpu_model(self.model, gpus=2)
+        else:
+            self.target = self.model
+        self.target.compile(optimizer=optimizer, loss=loss)
+        self.target.summary()
+
+        self.optimizer = optimizer
+        self.loss = loss
 
     @staticmethod
     def log_config(filename):
@@ -179,25 +188,28 @@ class KerasModelTrainner:
                                                   augment=augment)
 
         # Calculate number of steps in train and validation
-        train_steps = np.floor(self.train_loader.num_of_samples() / batch_size)
+        train_steps = np.floor(self.train_loader.num_of_samples / batch_size)
         if augment:
             # 8 for 0, 90, 180 and 270 deg rotation, along with flipped or not.
             train_steps *= 8
-        vali_steps = np.floor(self.vali_loader.num_of_samples() / batch_size)
+        vali_steps = np.floor(self.vali_loader.num_of_samples / batch_size)
 
         # Create callbacks
         history = _TrainHistory(self.model, self.model_name+'_weight.h5')
 
         # Now fit.
-        self.model.fit_generator(steps_per_epoch=train_steps,
-                                 epochs=epoch,
-                                 generator=train_gener,
-                                 validation_steps=vali_steps,
-                                 validation_data=vali_gener,
-                                 max_queue_size=queue,
-                                 use_multiprocessing=True,
-                                 callbacks=[history]
-                                 )
+        self.target.fit_generator(steps_per_epoch=train_steps,
+                                  epochs=epoch,
+                                  generator=train_gener,
+                                  validation_steps=vali_steps,
+                                  validation_data=vali_gener,
+                                  max_queue_size=queue,
+                                  use_multiprocessing=True,
+                                  callbacks=[history]
+                                  )
+
+        self.batchsize = batch_size
+        self.epoch = epoch
 
         # write out log if needed
         if log:
@@ -205,7 +217,7 @@ class KerasModelTrainner:
             logging.info(history.epoch_losses)
             logging.info(history.epoch_val_losses)
 
-    def write_info(self, batch_size, epoch):
+    def write_info(self):
         with open(self.model_name + '.info', 'w') as f:
             f.writelines(['Filename: {0}\n'.format(self.model_name + '.h5'),
                           'Model Discription:\n',
@@ -215,11 +227,16 @@ class KerasModelTrainner:
                           'Loss function: {0}\n'.format(self.loss),
                           'Train Data:\n',
                           'Validation Data:\n',
-                          'Batchsize={0};epoch={1}\n'.format(batch_size, epoch),
+                          'Batchsize={0};epoch={1}\n'.format(
+                              self.batchsize, self.epoch),
                           'Scores: train loss=; vali loss=\n']
                          )
 
     def save(self):
         """Load weights and save model"""
-        self.model.load_weights(self.model_name+'_weight.h5')
+        if self._multigpu:
+            output_model = multi_gpu_model(self.model, gpus=2)
+        else:
+            output_model = self.model
+        output_model.load_weights(self.model_name+'_weight.h5')
         self.model.save(self.model_name + '.h5')

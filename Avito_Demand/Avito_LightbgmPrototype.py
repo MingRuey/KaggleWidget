@@ -12,10 +12,8 @@ https://www.kaggle.com/c/avito-demand-prediction/
 
 import os
 import numpy
-import pandas
 import pickle
 import lightgbm
-from sklearn.metrics import mean_squared_error
 
 PATH = '/archive/Avito/data_preprocess/'
 
@@ -23,16 +21,22 @@ PATH = '/archive/Avito/data_preprocess/'
 df = pickle.load(open(os.path.join(PATH, 'train_F01.pickle'), 'rb'))
 
 # the train-validation split
-msk = numpy.random.rand(df.shape[0]) < 0.8 # a random 80-20 split
+msk = numpy.random.rand(df.shape[0]) < 0.8  # a random 80-20 split
 train = df[msk]
 vali = df[~msk]
 
 # create train/vali data
-lgb_train = lightgbm.Dataset(data=train.drop(['item_id', 'description', 'deal_probability'], axis=1),
+lgb_train = lightgbm.Dataset(data=train.drop(['item_id',
+                                              'description',
+                                              'deal_probability'],
+                                             axis=1),
                              label=train['deal_probability']
                              )
 
-lgb_vali = lightgbm.Dataset(data=vali.drop(['item_id', 'description', 'deal_probability'], axis=1),
+lgb_vali = lightgbm.Dataset(data=vali.drop(['item_id',
+                                            'description',
+                                            'deal_probability'],
+                                           axis=1),
                             label=vali['deal_probability'],
                             reference=lgb_train
                             )
@@ -60,4 +64,3 @@ gbm = lightgbm.train(params=params,
 # save model with pickle
 with open('lgb-gbdt_0522_Av00.pickle', 'wb') as fout:
     pickle.dump(gbm, fout)
-

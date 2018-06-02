@@ -6,7 +6,7 @@ from keras.applications.inception_v3 import InceptionV3
 def av01_nn():
     """A simple two 2048x2048 FC model"""
     model = Sequential()
-    model.add(Dense(2048, input_dim=1716, activation='relu'))
+    model.add(Dense(2048, input_dim=1611, activation='relu'))
     model.add(Dropout(0.5))
     model.add(Dense(1024, activation='relu'))
     model.add(Dropout(0.5))
