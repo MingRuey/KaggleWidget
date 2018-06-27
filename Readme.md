@@ -10,20 +10,20 @@ Avito Demand
 ---
 competition info: https://www.kaggle.com/c/avito-demand-prediction/
 
-Modules for data cleaning and various enconding:
-    : Avtio_CsvProcess.py
+Modules for data cleaning and various enconding
+  : Avtio_CsvProcess.py
 
 For generating image features
-    : Avito_ImageFeature.py
+  : Avito_ImageFeature.py
 
 Models
-    : Avito_KerasPrototypes, LgbPrototype, XgbPrototype, FfmPrototype ...
+  : Avito_KerasPrototypes, LgbPrototype, XgbPrototype, FfmPrototype ...
 
 Scripts for trainning models
-    : Avito_TrainScripts.py
+  : Avito_TrainScripts.py
 
 For creating submittion file
-    : Avito_modelsubmission.py
+  : Avito_modelsubmission.py
 
 
 
@@ -41,23 +41,23 @@ label -- We extract the labels from Json file given, stored them in a numpy arra
 
 
 Extracting data from the Json file:
-    : iMfashion_JsonExtractLabels.py, iMfashion_JsonGetImg.py, iMfashion_CheckBrokenImgs.py
+  : iMfashion_JsonExtractLabels.py, iMfashion_JsonGetImg.py, iMfashion_CheckBrokenImgs.py
 
 Selecting a smaller subset of data by check similarity betweem labels:
-    : iMfashion_TrainSetFilter.py
+  : Mfashion_TrainSetFilter.py
 
 Attempts on image masking(mainly removing image background)
-    : iMfashion_ObjectDetection.py
+  : iMfashion_ObjectDetection.py
 
 Generator for loading images into Keras models
-    : iMfashion_ImgBatchLoader.py
+  : iMfashion_ImgBatchLoader.py
 
 Models(all using Keras)
-    : iMfashion_kerasPrototype.py
+  : iMfashion_kerasPrototype.py
 
 For creating submission file and examine the model performance:
-    : iMfashion_ValidateModel.py
+  : iMfashion_ValidateModel.py
 
 For ensembling on the submission files
-    : iMfashion_ModelEnsemble.py
+  : iMfashion_ModelEnsemble.py
 
