@@ -8,24 +8,23 @@ Customed and frequently used tools in Kaggle competitions.
 
 Avito Demand
 ---
+
 competition info: https://www.kaggle.com/c/avito-demand-prediction/
 
-Modules for data cleaning and various enconding
-  : Avtio_CsvProcess.py
+    Modules for data cleaning and various enconding:
+    Avtio_CsvProcess.py
 
-For generating image features
-  : Avito_ImageFeature.py
+    For generating image features:
+    Avito_ImageFeature.py
 
-Models
-  : Avito_KerasPrototypes, LgbPrototype, XgbPrototype, FfmPrototype ...
+    For generating image features:
+    Avito_KerasPrototypes, LgbPrototype, XgbPrototype, FfmPrototype ...
 
-Scripts for trainning models
-  : Avito_TrainScripts.py
+    Scripts for trainning models:
+    Avito_TrainScripts.py
 
-For creating submittion file
-  : Avito_modelsubmission.py
-
-
+    For creating submittion file:
+    Avito_modelsubmission.py
 
 FGVC5 iMfashion
 ---
@@ -40,24 +39,24 @@ label -- We extract the labels from Json file given, stored them in a numpy arra
          For deatiled format, check out: iMfashion_JsonExtractLabel.
 
 
-Extracting data from the Json file:
-  : iMfashion_JsonExtractLabels.py, iMfashion_JsonGetImg.py, iMfashion_CheckBrokenImgs.py
+    Extracting data from the Json file:
+    iMfashion_JsonExtractLabels.py, iMfashion_JsonGetImg.py, iMfashion_CheckBrokenImgs.py
 
-Selecting a smaller subset of data by check similarity betweem labels:
-  : Mfashion_TrainSetFilter.py
+    Selecting a smaller subset of data by check similarity betweem labels:
+    iMfashion_TrainSetFilter.py
 
-Attempts on image masking(mainly removing image background)
-  : iMfashion_ObjectDetection.py
+    Attempts on image masking(mainly removing image background)
+    iMfashion_ObjectDetection.py
 
-Generator for loading images into Keras models
-  : iMfashion_ImgBatchLoader.py
+    Generator for loading images into Keras models
+    iMfashion_ImgBatchLoader.py
 
-Models(all using Keras)
-  : iMfashion_kerasPrototype.py
+    Models(all using Keras)
+    iMfashion_kerasPrototype.py
 
-For creating submission file and examine the model performance:
-  : iMfashion_ValidateModel.py
+    For creating submission file and examine the model performance:
+    iMfashion_ValidateModel.py
 
-For ensembling on the submission files
-  : iMfashion_ModelEnsemble.py
+    For ensembling on the submission files
+    iMfashion_ModelEnsemble.py
 
