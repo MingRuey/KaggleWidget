@@ -120,7 +120,7 @@ def train_cnn():
 
     # CNN Model
     cnn = KerasModelTrainner(model=av02_inceptv3(),
-                             model_name='av02_InceptionV3_0601',
+                             model_name='av05_InceptionV3_0601',
                              train_loader=train_loader,
                              vali_loader=vali_loader
                              )
@@ -133,7 +133,7 @@ def train_cnn():
             epoch=1,
             augment=False,
             queue=10,
-            log='av02_InceptionV3_0601.log')
+            log='av05_InceptionV3_0601.log')
 
     cnn.write_info()
     cnn.save()

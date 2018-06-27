@@ -75,8 +75,7 @@ def main():
         task = urlgenerator_json(file)
         with Pool(processes=10) as p:
             p.starmap(func, task)
-            p.close()            
-            p.join()
+        p.join()
             
     except IOError as err:
         print(err)

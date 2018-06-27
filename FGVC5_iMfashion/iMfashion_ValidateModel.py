@@ -144,7 +144,8 @@ def main():
     model = test_model(batch_size=1)
     submission(model, 'test.csv', test_path=path)
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()
 
 
