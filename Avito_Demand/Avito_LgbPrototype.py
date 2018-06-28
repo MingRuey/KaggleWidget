@@ -19,16 +19,14 @@ from sklearn.model_selection import train_test_split
 TRAIN_PATH = '/rawdata/Avito_Demand/imgs_train/'
 PKL_PATH = '/archive/Avito/data_preprocess/'
 TRAIN_PKL = 'train.pickle'
-F02_TRAIN_PKL = 'F02_train.pickle'
-F02_TEST_PKL = 'F02_test.pickle'
-F03_TRAIN_NPZ = 'F03_train.npz'
-F03_TEST_NPZ = 'F03_test.npz'
-LABELS = 'F03_ColumnInfo.pickle'
+F04_TRAIN = 'F04_train.npz'
+F04_TEST = 'F04_test.npz'
+LABELS = 'F04_ColumnInfo.pickle'
 RANDOM_STATE = 42  # the random seed for sklearn train_test_split
 
 # load data
 # df = pickle.load(open(os.path.join(PKL_PATH, F02_TRAIN_PKL), 'rb'))
-mat_train = load_npz(os.path.join(PKL_PATH, F03_TRAIN_NPZ))
+mat_train = load_npz(os.path.join(PKL_PATH, F04_TRAIN))
 print('Finish loading data.')
 
 # random split train-vali
@@ -54,7 +52,7 @@ train, vali = train_test_split(mat_train,
 #                             )
 with open(os.path.join(PKL_PATH, LABELS), 'rb') as f_label:
     labels = pickle.load(f_label)
-    labels = labels['F03_train_columns'][:-1]
+    labels = labels['F05_train_columns'][:-1]
 
 lgb_train = lightgbm.Dataset(data=train[:, :-1],
                              feature_name=labels,
@@ -76,12 +74,13 @@ for leaf in [300]:
         # train parameters
         params = {'device': 'gpu',
                   'boosting_type': 'gbdt',
-                  'objective': 'regression',
+                  'objective': 'poisson',
+                  'poission_max_delta_step': 1.2,
                   'metric': 'rmse',
                   'num_leaves': leaf,
                   'learning_rate': 0.1,
                   # 'max_depth': depth,
-                  'verbose': -1
+                  'verbose': -1,
                   }
 
         # start training
@@ -105,7 +104,7 @@ for leaf in [300]:
             best_leaf = leaf
 
             # save model with pickle
-            with open('av07_lgb-gbdt_0625.pickle', 'wb') as fout:
+            with open('av09_lgb-gbdt_0628.pickle', 'wb') as fout:
                 pickle.dump(model, fout)
                 print('Model saved, leaf: {}, depth: {} and vali_l2: {}'.format(
                     best_leaf, best_depth, vali_l2)

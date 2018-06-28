@@ -119,7 +119,7 @@ def script_xgb():
 def script_lgbm():
     path = '/archive/Avito/data_preprocess/'
 
-    with open('/archive/Avito/models/av07_lgb-gbdt_0625.pickle', 'rb') as fin1:
+    with open('/archive/Avito/models/av08_lgb-gbdt_0627.pickle', 'rb') as fin1:
         with open(os.path.join(path, 'F02_test.pickle'), 'rb') as fin2:
             model = pickle.load(fin1)
             print('Evaluation on vali: ', model.best_score)
@@ -127,11 +127,11 @@ def script_lgbm():
             # df_test = pickle.load(fin2)
             # lgbm_submit(model, df_test, file_name='av07_lgbm_submission.csv')
             item_ids = pickle.load(fin2)['item_id'].values
-            mat_test = load_npz(os.path.join(path, 'F03_test.npz'))
+            mat_test = load_npz(os.path.join(path, 'F04_test.npz'))
             lgbm_submmit_sparse(model,
                                 mat_test,
                                 item_ids,
-                                file_name='av07_lgb-gbdt_submission.csv'
+                                file_name='av08_lgb-gbdt_submission.csv'
                                 )
 
 
@@ -144,5 +144,38 @@ def script_nn():
         nn_submit(model, df_test, file_name='av01_nn_submission.csv')
 
 
+def blend_model():
+    path = '/archive/Avito/submissions/'
+    file_name = 'ensemble_publics_submission.csv'
+
+    model_av07 = pandas.read_csv(path + 'av07_lgb-gbdt_submission.csv')
+    model_public0 = pandas.read_csv(path + 'public0_02211.csv')
+    model_public1 = pandas.read_csv(path + 'public1_02212.csv')
+    model_public2 = pandas.read_csv(path + 'public2_02212.csv')
+    model_public3 = pandas.read_csv(path + 'public3_02237.csv')
+    model_public4 = pandas.read_csv(path + 'public4_02246.csv')
+    model_public5 = pandas.read_csv(path + 'public5_02211.csv')
+
+    models = [model_public0, model_public1, model_public2,
+              model_public3, model_public4, model_public5]
+    weights = [0.2211, 0.2212, 0.2212, 0.2237, 0.2246, 0.2211]
+
+    # initialize dataframe
+    result = pandas.DataFrame()
+    result['item_id'] = model_av07['item_id']
+    result['deal_probability'] = 0.
+
+    # normalize the weights
+    weights = [i/sum(weights) for i in weights]
+
+    for model, weight in zip(models, weights):
+        result['deal_probability'] += model['deal_probability']*weight
+
+    # if prediction is < 0, let it be 0
+    result.loc[result['deal_probability'] < 0, 'deal_probability'] = 0
+    result.loc[result['deal_probability'] > 1, 'deal_probability'] = 1
+    result[['item_id', 'deal_probability']].to_csv(file_name, index=False)
+
+
 if __name__ == '__main__':
-    script_lgbm()
+    blend_model()

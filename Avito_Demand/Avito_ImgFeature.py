@@ -16,6 +16,7 @@ import numpy
 import threading
 import cv2
 import pandas
+import cupy
 from math import ceil
 from multiprocessing import Queue
 from keras.models import Model
@@ -24,25 +25,20 @@ from keras.applications.mobilenet import MobileNet
 from keras.applications.mobilenet import preprocess_input
 from keras.preprocessing.image import load_img, img_to_array
 
-TRAIN_PATH = '/rawdata/Avito_Demand/imgs_train/'
+TRAIN_PATH = '/rawdata/Avito_Demand/imgs_test/'
 PKL_PATH = '/archive/Avito/data_preprocess/'
-TRAIN_PKL = 'train.pickle'
+TRAIN_PKL = 'test.pickle'
 WEIGHT_PATH = '/home/mrchou/code/KaggleWidget/Avito_Demand/weights/'
 
 
 # from github.com/titu1994/neural-image-assessment/utils/score_utils.py
-def mean_score(scores):
-    si = numpy.arange(1, 11, 1)
-    mean = numpy.sum(scores * si)
-    return mean
-
-
-# from github.com/titu1994/neural-image-assessment/utils/score_utils.py
-def std_score(scores):
-    si = numpy.arange(1, 11, 1)
-    mean = mean_score(scores)
-    std = numpy.sqrt(numpy.sum(((si - mean) ** 2) * scores))
-    return std
+# change to cupy to accelerate
+def cal_mean_mse(mat_scores):
+    weight = cupy.arange(1, 11)
+    mat_scores = cupy.asarray(mat_scores)
+    mean = (mat_scores * weight).sum(axis=1).reshape(-1, 1)
+    mse = ((mat_scores - mean)**2).sum(axis=1).reshape(-1, 1)
+    return cupy.asnumpy(cupy.hstack([mean, mse]))
 
 
 def img_loader(imgs, imgids):
@@ -140,12 +136,16 @@ def script_nima():
     with open(os.path.join(PKL_PATH, TRAIN_PKL), 'rb') as f:
         with open(os.path.join(PKL_PATH, 'nima.pickle'), 'wb') as f_out:
             df_train = pickle.load(f)
-            pickle.dump(nima(df_train['image'].values), f_out)
+            mat_scores = nima(df_train['image'].values)
+            pickle.dump(mat_scores, f_out)
+
+        with open(os.path.join(PKL_PATH, 'NIMA.pickle'), 'wb') as f_out:
+            pickle.dump(cal_mean_mse(mat_scores), f_out)
 
 
 def script_brightness():
     with open(os.path.join(PKL_PATH, TRAIN_PKL), 'rb') as f:
-        with open(os.path.join(PKL_PATH, 'bright_kp.pickle'), 'wb') as f_out:
+        with open(os.path.join(PKL_PATH, 'bkp.pickle'), 'wb') as f_out:
             df_train = pickle.load(f)
             imgs = df_train['image'].values
 
@@ -170,5 +170,4 @@ def script_brightness():
 
 if __name__ == '__main__':
     script_nima()
-
-
+    script_brightness()
