@@ -3,7 +3,16 @@ Customed and frequently used tools in Kaggle competitions.
 
 >Codes are organized by their compititions.
 
->Additionally, KerasUtils.py stores some useful modules/patterns for building models from Keras.
+> CnnUtils have some classes used for trainning CNN in Tensorflow.
+> Additionally, KerasUtils.py stores some useful modules/patterns for building models from Keras.
+
+Google_OpenImg
+---
+
+competition info: https://www.kaggle.com/c/avito-demand-predict
+
+    Modules for turning images into tfrecord files.
+    GoogleImg_ToTFR.py
 
 
 Avito Demand
