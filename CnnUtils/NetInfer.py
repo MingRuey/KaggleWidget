@@ -7,8 +7,6 @@ Functions help to make evaluation/prediction from CNN on images.
 
 """
 
-import queue
-import threading
 from collections import namedtuple
 from functools import partial
 
@@ -42,11 +40,14 @@ def _tf_parse_img(filename, img_size):
     img = tf.image.resize_images(img,
                                  list(img_size),
                                  method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-    return img
+    return img, filename
 
 
 def _detect_to_predict(detections):  # TODO: for OID API pretrained &batchsize=1
     """Get a list of bbox objs from model prediction"""
+    filename = detections[1]
+    detections = detections[0]
+
     labels = detections[0][0]
     scores = detections[1][0]
     boxes = detections[2][0]
@@ -57,7 +58,7 @@ def _detect_to_predict(detections):  # TODO: for OID API pretrained &batchsize=1
     scores = scores[target_index]
     boxes = boxes[target_index]
 
-    return labels, scores, boxes
+    return filename, labels, scores, boxes
 
 
 class Model:
@@ -106,7 +107,7 @@ class Model:
                 # configure input data
                 parse_img = partial(_tf_parse_img, img_size=img_size)
                 imgs = _tf_get_iter_from_files(img_files, parse_img)
-                img = imgs.get_next(name='img')
+                img, filename = imgs.get_next(name='img')
                 img = tf.expand_dims(img, 0)
 
                 # connect input with model._detect
@@ -115,56 +116,10 @@ class Model:
                 with tf.Session() as sess:
                     try:
                         while True:
-                            que.put(sess.run(detections))
+                            que.put(sess.run([detections, filename]))
                     except tf.errors.OutOfRangeError:
                         print("Finish Inference.")
 
 
 if __name__ == '__main__':
-    import os
-    import time
-
-    imgfiles = ['/archive/OpenImg/eval_TFRs/imgs/' + file for file in os.listdir('/archive/OpenImg/eval_TFRs/imgs')][:500]
-
-    class _PredictWorker(threading.Thread):
-        """An thread for reading image and turn it into tf.train.Example"""
-
-        def __init__(self, que):
-            super(_PredictWorker, self).__init__()
-            self.que = que
-
-        def run(self):
-            model = Model()
-            model.load_model('/archive/OpenImg/models/FasterRCNN_InceptResV2_Pretrained/frozen_inference_graph.pb')
-            model.infer_on_imgs(img_files=imgfiles, que=self.que)
-
-
-    start_t = time.time()
-
-    q = queue.Queue()
-    worker = _PredictWorker(que=q)
-    worker.start()
-
-    time.sleep(60)
-    with open('/archive/OpenImg/test_eval.csv', 'w') as fout:
-        fout.write('ImageID,LabelName,Score,XMin,XMax,YMin,YMax\n')
-
-        bbox_line = '{},{:d},{:f},{XMin},{XMax},{YMin},{YMax}\n'
-        count = 0
-        while True:
-            try:
-                labels, scores, boxes = _detect_to_predict(q.get(timeout=20))
-                imageid = os.path.basename(imgfiles[count].strip('.jpg'))
-                for label, score, box in zip(labels, scores, boxes):
-                    fout.write(bbox_line.format(
-                        imageid, int(label), score,
-                        XMin=box[1], XMax=box[3], YMin=box[0], YMax=box[2]
-                    ))
-                count += 1
-            except queue.Empty:
-                print('Finish writing!')
-                break
-
-    worker.join()
-
-    print('Task finished in %s seconds' % (time.time() - start_t))
+    pass
