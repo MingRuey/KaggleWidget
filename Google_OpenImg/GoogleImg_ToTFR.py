@@ -12,33 +12,50 @@ import pickle
 import threading
 import queue
 
-import cv2
+import pandas
 import tensorflow as tf
 
-from CnnUtils import ObjDetectImg
+from CnnUtils.ImgObj import ObjDetectImg
 
 with open('/archive/OpenImg/ImgId_to_BboxLabels.pkl', 'rb') as f:
     # defaultdict mapping image id to labels.
     # return a list of BBox label or [] if not found.
     IMG_TO_LABELS = pickle.load(f)
 
+with open('/archive/OpenImg/LabelName_to_ClassID.pkl', 'rb') as f:
+    # dict mapping from label name to label index
+    LABEL_TO_INDEX = pickle.load(f)
+
+
+# Modified ObjDetectImg to let features include class index
+class ObjDetectImgWithIndex(ObjDetectImg):
+
+    def tffeatures(self):
+        # get original features
+        box_features = super(ObjDetectImgWithIndex, self).tffeatures()
+
+        # find out class indices for each label
+        cls_index = []
+        for bbox in self.bboxs:
+            cls_index.append(LABEL_TO_INDEX[bbox.labelname])  # may get KeyError
+
+        box_features['image/object/class/label'] = \
+            tf.train.Feature(int64_list=tf.train.Int64List(value=cls_index))
+        return box_features
+
 
 def to_imgobj(file):
     """Read image file and get labels, return an Image class."""
-    try:
-        img = cv2.imread(file)[::-1]  # turn image into RGB from BGR.
-        if img is None:
-            raise OSError('File not exist %s' % file)
-    except (OSError, TypeError) as err:
-        print('Error when loading %s, %s' % (os.path.basename(file), err))
+    with open(file, 'rb') as f:
+        img_bytes = f.read()
+
+    imgid = os.path.splitext(os.path.basename(file))[0]
+    labels = IMG_TO_LABELS[imgid]
+    if not labels:
+        raise KeyError('No labels found with %s' % (os.path.basename(file)))
     else:
-        imgid = os.path.splitext(os.path.basename(file))[0]
-        labels = IMG_TO_LABELS[imgid]
-        if labels:
-            return ObjDetectImg(imgid, img, labels)
-        else:
-            print('No labels found with %s' % (os.path.basename(file)))
-            return None
+        # Also get KeyError when creating ObjDetectImgWithIndex
+        return ObjDetectImgWithIndex(imgid, img_bytes, labels)
 
 
 def to_tfexample(features):
@@ -58,8 +75,11 @@ class ImgWorker(threading.Thread):
 
     def run(self):
         for file in self.files:
-            img = to_imgobj(file)
-            if img is not None:
+            try:
+                img = to_imgobj(file)
+            except (FileNotFoundError, KeyError) as err:
+                print(err)
+            else:
                 tfexample = to_tfexample(img.tffeatures())
                 self.que.put(tfexample)
 
@@ -90,12 +110,38 @@ def img_to_tfrecord(img_files, fout, num_of_workers):
 
 
 if __name__ == '__main__':
-    img_path = '/rawdata/Google_OpenImg/imgs_train/'
-    outfile = '/archive/OpenImg/train.tfrecord'
+    PATH = '/rawdata/Google_OpenImg/imgs_train/'
+
+    evalid = '/rawdata/Google_OpenImg/challenge-2018-image-ids-valset-od.csv'
+    evalid = {imgid for imgid in pandas.read_csv(evalid).ImageID.values}
+
+    evalfiles = [PATH + imgid + '.jpg' for imgid in evalid]
+    trainfiles = [PATH + file for file in os.listdir(PATH) if
+                  (not file.strip('.jpg') in evalid) and file.endswith('.jpg')
+                  ]
 
     start_t = time.time()
-    files = [img_path + file
-             for file in os.listdir(img_path)[:5000] if file.endswith('.jpg')]
-    img_to_tfrecord(files, outfile, num_of_workers=16)
+
+    # for train images
+    outfilename = '/archive/OpenImg/data/train_{:0=4}-{:0=4}.tfrecord'
+    num_of_tfrecords = 1000
+    len_of_filebatch = -(-len(trainfiles) // num_of_tfrecords)  # == math.ceil
+
+    for i in range(num_of_tfrecords):
+        outfile = outfilename.format(i+1, num_of_tfrecords)
+
+        filebatch = trainfiles[i*len_of_filebatch: (i+1)*len_of_filebatch]
+        img_to_tfrecord(filebatch, outfile, num_of_workers=16)
+
+    # for eval images
+    outfilename = '/archive/OpenImg/data/eval_{:0=4}-{:0=4}.tfrecord'
+    num_of_tfrecords = 10
+    len_of_filebatch = -(-len(evalfiles) // num_of_tfrecords)  # == math.ceil
+
+    for i in range(num_of_tfrecords):
+        outfile = outfilename.format(i + 1, num_of_tfrecords)
+
+        filebatch = evalfiles[i * len_of_filebatch: (i + 1) * len_of_filebatch]
+        img_to_tfrecord(filebatch, outfile, num_of_workers=16)
 
     print('Task finished in %s seconds' % (time.time() - start_t))

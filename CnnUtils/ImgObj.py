@@ -3,8 +3,8 @@
 Created on July 12 22:30 2018
 @author: MRChou
 
-Useful classes and functions for trainning CNN models (in Tensorflow).
-With the intension to make it incorporate with Google object API.
+Useful image classes for trainning CNN models (in Tensorflow).
+With strong intension to make it incorporate with Google object API.
 
 Check out:
 https://github.com/tensorflow/models/tree/master/research/object_detection
@@ -14,6 +14,7 @@ https://github.com/tensorflow/models/tree/master/research/object_detection
 from collections import namedtuple
 
 import numpy
+import cv2
 import tensorflow as tf
 
 
@@ -37,13 +38,18 @@ def _tffeature_floatlist(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
 
-class Image:
+class ByteImage:
     """An object stores a single image."""
 
-    def __init__(self, imgid, img_array, imgformat='jpg'):
+    def __init__(self, imgid, imgbytes, imgformat='jpg'):
         self._imgid = str(imgid)
-        self._value = numpy.array(img_array)
-        self._height, self._width, *kw = self.value.shape
+        self._bytesvalue = imgbytes
+        img_array = numpy.fromstring(imgbytes, numpy.uint8)
+        if imgformat == 'jpg':
+            img_array = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        else:
+            raise NotImplementedError('Unsupported image format %s' % imgformat)
+        self._height, self._width, self._channel = img_array.shape
         self.format = imgformat
 
     @property
@@ -51,8 +57,8 @@ class Image:
         return self._imgid
 
     @property
-    def value(self):
-        return self._value
+    def bytesvalue(self):
+        return self._bytesvalue
 
     @property
     def height(self):
@@ -62,9 +68,12 @@ class Image:
     def width(self):
         return self._width
 
+    @property
+    def channel(self):
+        return self._channel
+
     def tffeatures(self):
         imgid_in_bytes = self.imgid.encode()
-        imgarr_in_bytes = self.value.tostring()
         format_in_byte = self.format.encode()
 
         return {'image/source_id': _tffeature_bytes(imgid_in_bytes),
@@ -72,7 +81,7 @@ class Image:
                 'image/format': _tffeature_bytes(format_in_byte),
                 'image/height': _tffeature_int64(self.height),
                 'image/width': _tffeature_int64(self.width),
-                'image/encoded': _tffeature_bytes(imgarr_in_bytes)
+                'image/encoded': _tffeature_bytes(self.bytesvalue)
                 }
 
 
@@ -102,12 +111,12 @@ class BBox(_bbox):
         return self
 
 
-class ObjDetectImg(Image):
+class ObjDetectImg(ByteImage):
     """An image with bound box as labels"""
 
     def __init__(self, imgid, img_array, labels):
         super(ObjDetectImg, self).__init__(imgid, img_array)
-        self.labels = [BBox(*label) for label in labels]
+        self.bboxs = [BBox(*label) for label in labels]
 
     def tffeatures(self):
         xmins = []
@@ -115,13 +124,14 @@ class ObjDetectImg(Image):
         ymins = []
         ymaxs = []
         cls_txt = []
-        for label in self.labels:
-            xmins.append(label.xmin)
-            xmaxs.append(label.xmax)
-            ymins.append(label.ymin)
-            ymaxs.append(label.ymax)
-            cls_txt.append(label.labelname.encode())
+        for bbox in self.bboxs:
+            xmins.append(bbox.xmin)
+            xmaxs.append(bbox.xmax)
+            ymins.append(bbox.ymin)
+            ymaxs.append(bbox.ymax)
+            cls_txt.append(bbox.labelname.encode())
 
+        # features align with Google Object Detection API
         box_features = {'image/object/bbox/xmin': _tffeature_floatlist(xmins),
                         'image/object/bbox/xmax': _tffeature_floatlist(xmaxs),
                         'image/object/bbox/ymin': _tffeature_floatlist(ymins),
