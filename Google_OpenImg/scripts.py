@@ -39,17 +39,22 @@ def _write_out_for_eval(fout, input_que):
     with open(fout, 'w') as f:
         f.write('ImageID,LabelName,Score,XMin,XMax,YMin,YMax\n')
 
-        bbox_line = '{},{:d},{:f},{XMin},{XMax},{YMin},{YMax}\n'
+        bbox_line = '{ImageID},{LabelName:d},{Score:f},{XMin},{XMax},{YMin},{YMax}\n'
         count = 0
         while True:
             try:
                 filename, labels, scores, boxes = _detect_to_predict(input_que.get(timeout=20))
                 imageid = os.path.basename(filename.decode().strip('.jpg'))
                 for label, score, box in zip(labels, scores, boxes):
-                    f.write(bbox_line.format(
-                        imageid, int(label), score,
-                        XMin=box[1], XMax=box[3], YMin=box[0], YMax=box[2]
-                    ))
+                    try:
+                        f.write(bbox_line.format(
+                            ImageID=imageid,
+                            LabelName=LABEL_TO_INDEX[_pretrained_to_label(int(label))],
+                            Score=score,
+                            XMin=box[1], XMax=box[3], YMin=box[0], YMax=box[2]
+                        ))
+                    except KeyError:
+                        pass
                 count += 1
             except queue.Empty:
                 print('Finish writing!')
@@ -96,6 +101,7 @@ def _write_out_for_submit(fout, input_que):
 def script_for_eval():
     path = '/archive/OpenImg/eval_TFRs/imgs/'
     fout = '/archive/OpenImg/infer_on_eval.csv'
+    modelfile = '/archive/OpenImg/models/FasterRCNN_InceptResV2_Pretrained/frozen_inference_graph.pb'
 
     imgfiles = [path + file for file in os.listdir(path)]
 
@@ -108,8 +114,7 @@ def script_for_eval():
 
         def run(self):
             model = Model()
-            model.load_model(
-                '/archive/OpenImg/models/FasterRCNN_InceptResV2_Pretrained/frozen_inference_graph.pb')
+            model.load_model(modelfile)
             model.infer_on_imgs(img_files=imgfiles, que=self.que)
 
     start_t = time.time()
@@ -118,7 +123,7 @@ def script_for_eval():
     worker = _PredictWorker(que=q)
     worker.start()
 
-    time.sleep(60)
+    time.sleep(600)
     _write_out_for_eval(fout=fout, input_que=q)
     worker.join()
 
@@ -127,7 +132,8 @@ def script_for_eval():
 
 def script_for_submit():
     path = '/rawdata/Google_OpenImg/imgs_test/'
-    fout = 'pretrain_submission.csv'
+    fout = 'OI00_submission.csv'
+    modelfile = '/archive/OpenImg/models/OI00_FasterRCNN_InceptResV2/export_ckpt34126/frozen_inference_graph.pb'
 
     imgfiles = [path + file for file in os.listdir(path)]
 
@@ -140,22 +146,22 @@ def script_for_submit():
 
         def run(self):
             model = Model()
-            model.load_model(
-                '/archive/OpenImg/models/FasterRCNN_InceptResV2_Pretrained/frozen_inference_graph.pb')
+            model.load_model(modelfile)
             model.infer_on_imgs(img_files=imgfiles, que=self.que)
 
     start_t = time.time()
 
-    q = queue.Queue()
+    q = queue.Queue(maxsize=20)
     worker = _PredictWorker(que=q)
     worker.start()
 
-    time.sleep(60)
+    time.sleep(600)
     _write_out_for_submit(fout=fout, input_que=q)
     worker.join()
 
-    print('Finish infer on eval set in %s secs' % (time.time() - start_t))
+    print('Finish predict on eval set in %s secs' % (time.time() - start_t))
 
 
 if __name__ == '__main__':
+    # script_for_eval()
     script_for_submit()
