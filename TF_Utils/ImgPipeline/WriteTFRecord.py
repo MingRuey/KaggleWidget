@@ -9,6 +9,7 @@ Scenario: For writing image array and feature labels into TFRecord file.
 import time
 import logging
 from pathlib import PurePath
+from threading import Lock
 from concurrent import futures
 from queue import Queue, Empty
 
@@ -18,7 +19,7 @@ import tensorflow as tf
 class ImgObjAbstract:
     """ A abstract interface that holds a single image and its labels."""
 
-    def to_tfexample(self, flag):
+    def to_tfexample(self):
         """Turn image and labels into an tensorflow example.
            Should raise NotImplementedError facing unknown flag.
         """
@@ -29,10 +30,19 @@ class _ImgGenerKeeper:
     """An helper class record states of generator yielding ImgObj"""
 
     def __init__(self, imgobj_gener):
-        self.imgobj_gener = (imgobj for imgobj in imgobj_gener)
+        self._imgobj_gener = (imgobj for imgobj in imgobj_gener)
+        self._lock = Lock()
         self.success_count = 0
         self.err_count = 0
         self.imggner_terminate = False
+
+    def imgobj_gener(self):
+        """Make self_imgobj_gener thread-safe"""
+        self._lock.acquire()
+        try:
+            yield from self._imgobj_gener
+        finally:
+            self._lock.release()
 
 
 def _add_num_to_tfrecord_filename(fout, file_count):
@@ -44,8 +54,7 @@ def _add_num_to_tfrecord_filename(fout, file_count):
 def write_tfrecord(imgobj_gener,
                    num_imgs_per_file,
                    fout,
-                   flag='oid',
-                   num_threads=20):
+                   num_threads=40):
     """Write ImgObj classes into tfrecord file from a generator
 
     Args:
@@ -55,7 +64,6 @@ def write_tfrecord(imgobj_gener,
               for example: '/data/head.tfrecord' will results in
               '/data/head-001-158.tfrecord', '.../head-002-158.tfreocrd', ...
               which means there are 158 files in total.
-        flag: specify the format of writing Imgobj, currently only support 'oid'
         num_threads: number of threads to read image from file system
 
     """
@@ -65,8 +73,8 @@ def write_tfrecord(imgobj_gener,
     # a processor turn image to tf.example for multi-thread uses
     def imgobj_processor():
         try:
-            for imgobj in imgs.imgobj_gener:
-                tfexample_queue.put(imgobj.to_tfexample(flag=flag))
+            for imgobj in imgs.imgobj_gener():
+                tfexample_queue.put(imgobj.to_tfexample())
         except Exception as err:
             err_msg = 'Warning: processing imgobjs: {}'
             logging.exception(err_msg.format(err))

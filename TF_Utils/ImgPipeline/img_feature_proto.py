@@ -4,6 +4,11 @@ Created on 9/15/18
 @author: MRChou
 
 Scenario: store the proto -- required features of an image, for various format.
+
+Usage:
+    CLSPROTO / OIDPROTO --- defines how to parse the resulted tfrecord file.
+    build_[***]_features(*args) --- turn *args into tf.train.Example proto.
+                                    Currently [***] may be 'oid' or 'cls'.
 """
 
 from pathlib import PurePath
@@ -14,8 +19,18 @@ import cv2
 from pydicom import dcmread
 import tensorflow as tf
 
+# proto for classification on image
+CLSPROTO = {'image/source_id': tf.FixedLenFeature([], tf.string),
+            'image/filename': tf.FixedLenFeature([], tf.string),
+            'image/format': tf.FixedLenFeature([], tf.string),
+            'image/encoded': tf.FixedLenFeature([], tf.string),
+            'image/height': tf.FixedLenFeature([], tf.int64),
+            'image/width': tf.FixedLenFeature([], tf.int64),
+            'image/class/text':
+                tf.FixedLenSequenceFeature([], tf.string, allow_missing=True),
+            }
 
-# proto for object detection image
+# proto for object detection on image
 OIDPROTO = {'image/source_id': tf.FixedLenFeature([], tf.string),
             'image/filename': tf.FixedLenFeature([], tf.string),
             'image/format': tf.FixedLenFeature([], tf.string),
@@ -76,10 +91,16 @@ def _to_jpgbyte_jpgarray(img_path):
     return 'jpg', img_bytes, img_array
 
 
-class _OidFeatureDict(UserDict):
+class _FeatureDict(UserDict):
 
-    def __init__(self):
-        initial_data = {keys: None for keys in OIDPROTO}
+    def __init__(self, flag='cls'):
+        if flag == 'cls':
+            self._proto = CLSPROTO
+        elif flag == 'oid':
+            self._proto = OIDPROTO
+        else:
+            raise NotImplementedError('Not supported flag: {}'.format(flag))
+        initial_data = {keys: None for keys in self._proto}
         super(__class__, self).__init__(initial_data)
 
     def __getitem__(self, item):
@@ -90,9 +111,9 @@ class _OidFeatureDict(UserDict):
         # TODO: Check on whether features are fixed length(now check only dtype)
         if item in self.data:
             try:
-                if OIDPROTO[item].dtype == tf.string:
+                if self._proto[item].dtype == tf.string:
                     self.data[item] = _tffeature_bytes(value)
-                elif OIDPROTO[item].dtype == tf.int64:
+                elif self._proto[item].dtype == tf.int64:
                     self.data[item] = _tffeature_int64(value)
                 else:
                     self.data[item] = _tffeature_float(value)
@@ -103,11 +124,28 @@ class _OidFeatureDict(UserDict):
             super(__class__, self).__setitem__(item, value)
 
 
+def build_cls_feature(imgid, path, classes):
+
+    img_format, img_bytes, img_array = _to_jpgbyte_jpgarray(path)
+
+    tf_features = _FeatureDict(flag='cls')
+    tf_features.update({'image/source_id': imgid,
+                        'image/filename': PurePath(path).name,
+                        'image/format': img_format,
+                        'image/encoded': img_bytes,
+                        'image/height': img_array.shape[0],
+                        'image/width': img_array.shape[1],
+                        'image/class/text': list(classes)
+                        })
+
+    return tf_features
+
+
 def build_oid_feature(imgid, path, xmins, xmaxs, ymins, ymaxs, classes):
 
     img_format, img_bytes, img_array = _to_jpgbyte_jpgarray(path)
 
-    tf_features = _OidFeatureDict()
+    tf_features = _FeatureDict(flag='oid')
     tf_features.update({'image/source_id': imgid,
                         'image/filename': PurePath(path).name,
                         'image/format': img_format,

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on 9/15/18
+Created on 9/18/18
 @author: MRChou
 
 Scenario: for converting rawdata images with labels into tfrecord files.
@@ -12,16 +12,16 @@ import pathlib
 
 import tensorflow as tf
 
-from TF_Utils.ImgPipeline.img_feature_proto import build_oid_feature
+from TF_Utils.ImgPipeline.img_feature_proto import build_cls_feature
 from TF_Utils.ImgPipeline.WriteTFRecord import ImgObjAbstract, write_tfrecord
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s  %(message)s',
-                    handlers=[logging.FileHandler('RSNA_WriteTFR.log'),
+                    handlers=[logging.FileHandler('Inclusive_WriteTFR.log'),
                               logging.StreamHandler()])
 
 
-with open('/archive/RSNA/ID_TO_LABELS.pkl', 'rb') as f:
+with open('/archive/Inclusive/ID_TO_LABELS.pkl', 'rb') as f:
     ID_TO_LABEL = pickle.load(f)
 
 
@@ -30,14 +30,7 @@ def _get_id_from_path(path):
 
 
 def _parse_labels(label):
-    return {'xmins': label['x'],
-            'xmaxs': [xmin + width for xmin, width in
-                      zip(label['x'], label['width'])],
-            'ymins': label['y'],
-            'ymaxs': [ymin + height for ymin, height in
-                      zip(label['y'], label['height'])],
-            'classes': [str(label['Target']).encode()] * len(label['x'])
-            }
+    return [cls.encode() for cls in label]
 
 
 class ImgObj(ImgObjAbstract):
@@ -65,13 +58,9 @@ class ImgObj(ImgObjAbstract):
                '        label {}'.format(self.imgid, self.img_path, self.labels)
 
     def to_tfexample(self):
-        tf_features = build_oid_feature(self.imgid,
+        tf_features = build_cls_feature(self.imgid,
                                         self.img_path,
-                                        self.labels['xmins'],
-                                        self.labels['xmaxs'],
-                                        self.labels['ymins'],
-                                        self.labels['ymaxs'],
-                                        self.labels['classes']
+                                        self.labels
                                         )
 
         return tf.train.Example(features=tf.train.Features(feature=tf_features))
@@ -79,7 +68,7 @@ class ImgObj(ImgObjAbstract):
 
 if __name__ == '__main__':
 
-    img_path = '/rawdata/RSNA_Pneumonia/imgs_train/'
+    img_path = '/rawdata/Google_OpenImg/imgs_train/'
 
     path_gener = pathlib.Path(img_path).iterdir()
 
@@ -90,4 +79,5 @@ if __name__ == '__main__':
 
     write_tfrecord(imgobj_gener=imgobj_gener,
                    num_imgs_per_file=1000,
-                   fout='/archive/RSNA/train_TFRs/train.tfrecord')
+                   fout='/archive/Inclusive/train_TFRs/train.tfrecord',
+                   num_threads=40)

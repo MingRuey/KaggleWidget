@@ -3,12 +3,11 @@
 Created on 9/17/18
 @author: MRChou
 
-Scenario: scripts for creating file 'ID_TO_LABELS.pkl'
+Scenario: scripts for creating file 'ID_TO_LABELS.pkl'.
 """
 
 import pickle
 
-import numpy
 import pandas
 
 
@@ -29,7 +28,7 @@ def script():
         labels = getlabels(row)
         patientId = row[id_field]
 
-        # rationale check: Target value 0 should not have labels, vice versa
+        # sanity check: Target value 0 should not have labels, vice versa
         for field in label_fields.values():
             if (pandas.isna(labels[field])) != (labels['Target'] == 0):
                 if labels['Target'] == 0:
@@ -45,14 +44,14 @@ def script():
         if patientId in id_to_labels:
             old_labels = id_to_labels[patientId]
 
-            # rationale check: Target match
+            # sanity check 1: Target match
             if not labels['Target'] == old_labels['Target']:
                 msg = 'Patient {} has inconsistent Target {} and {}.'
                 print(msg.format(patientId,
                                  labels['Target'],
                                  old_labels['Target']))
 
-            # rationale check 2: label should be different
+            # sanity check 2: label should be different
             elif all([labels[field] == old_labels[field] for field in label_fields.values()]):
                 msg = 'Patient {} has duplicate records.'
                 print(msg.format(patientId))
