@@ -13,7 +13,7 @@ import queue
 import pickle
 import threading
 
-from CnnUtils.NetInfer import Model, _detect_to_predict
+from Google_OpenImg.CnnUtils.NetInfer import Model, _detect_to_predict
 
 
 with open('/archive/OpenImg/LabelName_to_ClassID.pkl', 'rb') as pkl:

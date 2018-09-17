@@ -12,7 +12,7 @@ from collections import defaultdict
 
 import pandas
 
-from CnnUtils.ImgObj import BBox
+from Google_OpenImg.CnnUtils.ImgObj import BBox
 
 OUTANNO = 'ImgId_to_BboxLabels.pkl'
 OUTCLSID = 'LabelName_to_ClassID.pkl'

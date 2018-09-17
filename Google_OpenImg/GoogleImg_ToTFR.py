@@ -15,7 +15,7 @@ import queue
 import pandas
 import tensorflow as tf
 
-from CnnUtils.ImgObj import ObjDetectImg
+from Google_OpenImg.CnnUtils.ImgObj import ObjDetectImg
 
 with open('/archive/OpenImg/ImgId_to_BboxLabels.pkl', 'rb') as f:
     # defaultdict mapping image id to labels.

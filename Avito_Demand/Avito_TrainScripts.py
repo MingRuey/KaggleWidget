@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import load_model
 from Avito_KerasPrototypes import av01_nn, av02_inceptv3
-from KerasUtils import ImgLabelLoader, KerasModelTrainner
+from Legacy.KerasUtils import ImgLabelLoader, KerasModelTrainner
 
 TRAIN_PATH = '/rawdata/Avito_Demand/imgs_train/'
 PKL_PATH = '/archive/Avito/data_preprocess/'

@@ -1,18 +1,35 @@
 Customed and frequently used tools in Kaggle competitions.
 ===
 
->Codes are organized by their compititions.
+> Codes are organized by their compititions.
 
-> CnnUtils have some classes used for trainning CNN in Tensorflow.
-> Additionally, KerasUtils.py stores some useful modules/patterns for building models from Keras.
+> (draft)TF_Utils:  general support functions for building TF models  
+>> store all data and label into tfrecord files, and use Dataset and Estimator API for trainning
+
+>  9/17 update -- add TF_Utils   
+>> Deprecation: CNN utils,  move old into Google_OpenImg  
+>> Deprecation: KerasUtils, keras already merged with tensorflow, moved to Legacy               
+
+RSNA_Pneumonia
+---
+
+competition info: https://www.kaggle.com/c/rsna-pneumonia-detection-challenge
+
+    pickle image labels:
+    RSNA_script_pickle_id-label-map.py
+
+    Use TF_Utils.ImgPipeline structure:
+    turning images into tfrecord files -- RSNA_script_img_to_tfrecord.py
 
 Google_OpenImg
 ---
 
 competition info: https://www.kaggle.com/c/avito-demand-predict
-
-    Modules for turning images into tfrecord files.
-    GoogleImg_ToTFR.py
+    
+    Using Google_OpenImg.CnnUtils for:
+    pickle image labels -- GoogleImg_CreateLabelMap.py
+    turning images into tfrecord files -- GoogleImg_ToTFR.py
+    make prediction by TF model -- GoogleImg_scripts.py
 
 
 Avito Demand
@@ -34,6 +51,7 @@ competition info: https://www.kaggle.com/c/avito-demand-prediction/
 
     For creating submittion file:
     Avito_modelsubmission.py
+
 
 FGVC5 iMfashion
 ---
@@ -68,4 +86,3 @@ label -- We extract the labels from Json file given, stored them in a numpy arra
 
     For ensembling on the submission files
     iMfashion_ModelEnsemble.py
-

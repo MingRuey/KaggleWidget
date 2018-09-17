@@ -11,7 +11,7 @@ import os
 import pickle
 import numpy
 import cv2
-from KerasUtils import ImgLabelLoader
+from Legacy.KerasUtils import ImgLabelLoader
 from FGVC5_iMfashion.iMfashion_ImgBatchLoader import ImgBatchLoader
 
 
