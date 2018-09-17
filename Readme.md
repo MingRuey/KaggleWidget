@@ -10,6 +10,21 @@ Customed and frequently used tools in Kaggle competitions.
 >> Deprecation: CNN utils,  move old into Google_OpenImg  
 >> Deprecation: KerasUtils, keras already merged with tensorflow, moved to Legacy               
 
+Google_Inclusive
+---
+
+competition info: https://www.kaggle.com/c/rsna-pneumonia-detection-challenge
+
+    sanity check on image labels:
+    Inclusive_script_sanity-check.py
+    
+    pickle image labels:
+    Inclusive_script_pickle_id-label-map.py
+
+    Use TF_Utils.ImgPipeline structure:
+    turning images into tfrecord files -- Inclusive_script_img_to_tfrecord.py
+
+
 RSNA_Pneumonia
 ---
 
