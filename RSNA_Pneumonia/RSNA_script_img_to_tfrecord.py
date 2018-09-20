@@ -36,7 +36,7 @@ def _parse_labels(label):
             'ymins': label['y'],
             'ymaxs': [ymin + height for ymin, height in
                       zip(label['y'], label['height'])],
-            'classes': [str(label['Target']).encode()] * len(label['x'])
+            'classes': [int(label['Target'])] * len(label['x'])
             }
 
 
@@ -73,7 +73,6 @@ class ImgObj(ImgObjAbstract):
                                         self.labels['ymaxs'],
                                         self.labels['classes']
                                         )
-
         return tf.train.Example(features=tf.train.Features(feature=tf_features))
 
 

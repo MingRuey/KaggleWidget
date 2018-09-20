@@ -52,7 +52,8 @@ def script():
                                  old_labels['Target']))
 
             # sanity check 2: label should be different
-            elif all([labels[field] == old_labels[field] for field in label_fields.values()]):
+            elif all([labels[field] == old_labels[field]
+                      for field in label_fields.values()]):
                 msg = 'Patient {} has duplicate records.'
                 print(msg.format(patientId))
 

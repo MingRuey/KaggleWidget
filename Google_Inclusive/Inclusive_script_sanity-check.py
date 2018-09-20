@@ -13,8 +13,10 @@ from pandas import read_csv, DataFrame
 folder = pathlib.Path('/rawdata/Google_OpenImg/')
 prefix = '/rawdata/Google_OpenImg/inclusive-2018-'
 
-train_ids = {path.stem for path in (folder / 'imgs_train/').iterdir() if path.is_file()}
-test_ids = {path.stem for path in (folder / 'inclusive-2018-imgs_test').iterdir() if path.is_file()}
+train_ids = {path.stem for path in
+             (folder / 'imgs_train/').iterdir() if path.is_file()}
+test_ids = {path.stem for path in
+            (folder / 'inclusive-2018-imgs_test').iterdir() if path.is_file()}
 
 sample_submit = read_csv(prefix + 'stage_1_sample_submission.csv')
 labels_tune = read_csv(prefix + 'tuning_labels.csv',
@@ -66,9 +68,9 @@ if __name__ == '__main__':
 
     # sanity check 2-0 human labeled images equals train IDs, vice versa
     #              2-1 machine labeled images equals train IDs, vice versa
-    print('human labels {} rows, are its images equal to train id? {}'.format(
+    print('human labels {} rows, images equal to train ids? {}'.format(
         labels_human.shape[0], _is_same(labels_human['ImageID'], train_ids)))
-    print('machine labels {} rows, are its images euqual to train ids? {}'.format(
+    print('machine labels {} rows, images euqual to train ids? {}'.format(
         labels_machine.shape[0], _is_same(labels_machine['ImageID'], train_ids)))
     print('machine-labeled images subset of  train images? {}'.format(
         _check_subset(labels_machine['ImageID'], train_ids)))
@@ -86,6 +88,8 @@ if __name__ == '__main__':
         len(cls_human), _check_subset(cls_human, cls_ids)))
     print('Machine labels has {} kind, is subset of class-descript? {}.'.format(
         len(cls_machine), _check_subset(cls_machine, cls_ids)))
-    print('Labels in human {} but no description'.format(cls_human - cls_ids))
-    print('Labels in machine {} but no description'.format(cls_machine - cls_ids))
+    print('Labels by human {} but no description'.format(
+        cls_human - cls_ids))
+    print('Labels by machine {} but no description'.format(
+        cls_machine - cls_ids))
 

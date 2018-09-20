@@ -114,8 +114,8 @@ class BBox(_bbox):
 class ObjDetectImg(ByteImage):
     """An image with bound box as labels"""
 
-    def __init__(self, imgid, img_array, labels):
-        super(ObjDetectImg, self).__init__(imgid, img_array)
+    def __init__(self, imgid, img_bytes, labels):
+        super(ObjDetectImg, self).__init__(imgid, img_bytes)
         self.bboxs = [BBox(*label) for label in labels]
 
     def tffeatures(self):

@@ -26,8 +26,8 @@ CLSPROTO = {'image/source_id': tf.FixedLenFeature([], tf.string),
             'image/encoded': tf.FixedLenFeature([], tf.string),
             'image/height': tf.FixedLenFeature([], tf.int64),
             'image/width': tf.FixedLenFeature([], tf.int64),
-            'image/class/text':
-                tf.FixedLenSequenceFeature([], tf.string, allow_missing=True),
+            'image/class/index':
+                tf.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
             }
 
 # proto for object detection on image
@@ -45,8 +45,8 @@ OIDPROTO = {'image/source_id': tf.FixedLenFeature([], tf.string),
                 tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True),
             'image/object/bbox/ymax':
                 tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True),
-            'image/object/class/text':
-                tf.FixedLenSequenceFeature([], tf.string, allow_missing=True)
+            'image/object/class/index':
+                tf.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
             }
 
 
@@ -135,10 +135,10 @@ def build_cls_feature(imgid, path, classes):
                         'image/encoded': img_bytes,
                         'image/height': img_array.shape[0],
                         'image/width': img_array.shape[1],
-                        'image/class/text': list(classes)
+                        'image/class/index': list(classes)
                         })
 
-    return tf_features
+    return {**tf_features}  # return normal dict instead _FeatureDict
 
 
 def build_oid_feature(imgid, path, xmins, xmaxs, ymins, ymaxs, classes):
@@ -156,10 +156,10 @@ def build_oid_feature(imgid, path, xmins, xmaxs, ymins, ymaxs, classes):
                         'image/object/bbox/xmax': list(xmaxs),
                         'image/object/bbox/ymin': list(ymins),
                         'image/object/bbox/ymax': list(ymaxs),
-                        'image/object/class/text': list(classes)
+                        'image/object/class/index': list(classes)
                         })
 
-    return tf_features
+    return {**tf_features}  # return normal dict instead _FeatureDict
 
 
 if __name__ == '__main__':

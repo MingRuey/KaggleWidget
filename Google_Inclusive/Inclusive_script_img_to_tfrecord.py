@@ -24,13 +24,16 @@ logging.basicConfig(level=logging.DEBUG,
 with open('/archive/Inclusive/ID_TO_LABELS.pkl', 'rb') as f:
     ID_TO_LABEL = pickle.load(f)
 
+with open('/archive/Inclusive/LABELS_TO_CLSINDEX.pkl', 'rb') as f:
+    LABEL_TO_INDEX = pickle.load(f)
+
 
 def _get_id_from_path(path):
     return pathlib.PurePath(path).stem
 
 
 def _parse_labels(label):
-    return [cls.encode() for cls in label]
+    return [LABEL_TO_INDEX[cls] for cls in label]
 
 
 class ImgObj(ImgObjAbstract):

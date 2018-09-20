@@ -6,7 +6,23 @@ Created on 9/15/18
 Scenario: Read .config file for tranning network in tensorflow
 """
 
+import pathlib
 import configparser
+
+CONFIG = '/home/mrchou/code/KaggleWidget/TF_Utils/Config/examples/pipeline.cfg'
+
+
+class _TrainCfg:
+    pass
+
+class _ModelCfg:
+    pass
+
+
+class Config:
+
+    def __init__(self, cfg_path):
+        pass
 
 
 def parse_config(cfg_path):
@@ -16,4 +32,4 @@ def parse_config(cfg_path):
 
 
 if __name__ == '__main__':
-    pass
+    print(list(parse_config(CONFIG)['TRAIN_INPUT']))

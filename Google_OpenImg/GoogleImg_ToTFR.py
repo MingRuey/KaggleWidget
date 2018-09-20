@@ -112,17 +112,13 @@ def img_to_tfrecord(img_files, fout, num_of_workers):
 if __name__ == '__main__':
     PATH = '/rawdata/Google_OpenImg/imgs_train/'
 
-    evalid = '/rawdata/Google_OpenImg/challenge-2018-image-ids-valset-od.csv'
-    evalid = {imgid for imgid in pandas.read_csv(evalid).ImageID.values}
+    start_t = time.time()
 
-    evalfiles = [PATH + imgid + '.jpg' for imgid in evalid]
+    # for train images
     trainfiles = [PATH + file for file in os.listdir(PATH) if
                   (not file.strip('.jpg') in evalid) and file.endswith('.jpg')
                   ]
 
-    start_t = time.time()
-
-    # for train images
     outfilename = '/archive/OpenImg/data/train_{:0=4}-{:0=4}.tfrecord'
     num_of_tfrecords = 1000
     len_of_filebatch = -(-len(trainfiles) // num_of_tfrecords)  # == math.ceil
@@ -134,6 +130,11 @@ if __name__ == '__main__':
         img_to_tfrecord(filebatch, outfile, num_of_workers=16)
 
     # for eval images
+    evalid = '/rawdata/Google_OpenImg/challenge-2018-image-ids-valset-od.csv'
+    evalid = {imgid for imgid in pandas.read_csv(evalid).ImageID.values}
+
+    evalfiles = [PATH + imgid + '.jpg' for imgid in evalid]
+
     outfilename = '/archive/OpenImg/data/eval_{:0=4}-{:0=4}.tfrecord'
     num_of_tfrecords = 10
     len_of_filebatch = -(-len(evalfiles) // num_of_tfrecords)  # == math.ceil
