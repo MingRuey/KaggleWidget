@@ -14,27 +14,31 @@ import pandas
 
 
 def script_label_to_labelindex():
-    file = "/rawdata/Google_OpenImg/inclusive-2018-class-descriptions.csv"
+    file = "/rawdata/Google_OpenImg/inclusive-2018-classes-trainable.csv"
     sheet = pandas.read_csv(file)
+
+    des_file = "/rawdata/Google_OpenImg/inclusive-2018-class-descriptions.csv"
+    des_sheet = pandas.read_csv(des_file)
 
     # there are some indices in train labels but not in file.
     # see /archive/Inclusive/sanity-check.log
-    sheet = sheet.append(pandas.DataFrame([['/m/01bl7v', 'Boy'],
-                                           ['/m/05r655', 'Girl'],
-                                           ['/m/04yx4', 'Man'],
-                                           ['/m/03bt1vf', 'Woman'],
-                                           ['/m/019p5q', '?'],
-                                           ['/m/02zsn', '?'],
-                                           ['/m/05zppz', '?'],
-                                           ['/m/02pkb8', '?']],
-                                          columns=['label_code', 'description']),
-                         ignore_index=True)
+    des_sheet = des_sheet.append(pandas.DataFrame([['/m/01bl7v', 'Boy'],
+                                                   ['/m/05r655', 'Girl'],
+                                                   ['/m/04yx4', 'Man'],
+                                                   ['/m/03bt1vf', 'Woman'],
+                                                   ['/m/019p5q', '?'],
+                                                   ['/m/02zsn', '?'],
+                                                   ['/m/05zppz', '?'],
+                                                   ['/m/02pkb8', '?']],
+                                                  columns=['label_code',
+                                                           'description']),
+                                 ignore_index=True)
+
+    label_to_des = {value['label_code']: value['description'] for value
+                    in des_sheet.to_dict(orient='index').values()}
 
     label_to_index = {value: key for key, value
                       in sheet.to_dict(orient='dict')['label_code'].items()}
-
-    label_to_des = {value['label_code']: value['description'] for value
-                    in sheet.to_dict(orient='index').values()}
 
     with open('/archive/Inclusive/LABELS_TO_CLSINDEX.pkl', 'wb') as fout1:
         pickle.dump(label_to_index, file=fout1)

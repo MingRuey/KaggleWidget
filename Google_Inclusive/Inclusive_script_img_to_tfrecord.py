@@ -33,7 +33,7 @@ def _get_id_from_path(path):
 
 
 def _parse_labels(label):
-    return [LABEL_TO_INDEX[cls] for cls in label]
+    return [LABEL_TO_INDEX[cls] for cls in label if cls in LABEL_TO_INDEX]
 
 
 class ImgObj(ImgObjAbstract):
@@ -71,6 +71,7 @@ class ImgObj(ImgObjAbstract):
 
 if __name__ == '__main__':
 
+    # for train images:
     img_path = '/rawdata/Google_OpenImg/imgs_train/'
 
     path_gener = pathlib.Path(img_path).iterdir()
@@ -78,9 +79,23 @@ if __name__ == '__main__':
     imgobj_gener = (ImgObj(imgid=_get_id_from_path(path),
                            path=str(path),
                            label=ID_TO_LABEL[_get_id_from_path(path)])
-                    for path in path_gener if not path.is_dir())
+                    for path in path_gener if path.is_file())
 
     write_tfrecord(imgobj_gener=imgobj_gener,
                    num_imgs_per_file=1000,
                    fout='/archive/Inclusive/train_TFRs/train.tfrecord',
                    num_threads=40)
+
+    # for test images, set labels being empty list []:
+    # img_path = '/rawdata/Google_OpenImg/inclusive-2018-imgs_test/'
+    #
+    # path_gener = pathlib.Path(img_path).iterdir()
+    # imgobj_gener = (ImgObj(imgid=_get_id_from_path(path),
+    #                        path=str(path),
+    #                        label=[])
+    #                 for path in path_gener if path.is_file())
+    #
+    # write_tfrecord(imgobj_gener=imgobj_gener,
+    #                num_imgs_per_file=1000,
+    #                fout='/archive/Inclusive/test_TFRs/test.tfrecord',
+    #                num_threads=40)
