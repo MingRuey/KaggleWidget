@@ -107,12 +107,13 @@ def model_fn(features, labels, mode, params):
     iseval = (mode == tf.estimator.ModeKeys.EVAL)
     ispredict = (mode == tf.estimator.ModeKeys.PREDICT)
 
-    resnet = ResnetV2(blocks=[3, 4, 6, 3],
+    resnet = ResnetV2(blocks=[3, 4, 23, 3],
                       block_strides=[2, 2, 2, 1])
 
     inputs = features['image']
     inputs = resnet(inputs=inputs,
                     istraining=istrain)
+
     inputs = tf.layers.dense(inputs, 1,
                              activation=tf.nn.relu,
                              trainable=True,
@@ -124,8 +125,10 @@ def model_fn(features, labels, mode, params):
         loss = tf.losses.sigmoid_cross_entropy(tf.expand_dims(labels, -1),
                                                logits=inputs,
                                                scope='Loss')
-        optimizer = tf.train.MomentumOptimizer(learning_rate=0.01,
-                                               momentum=0.5)
+        sgdlr = 0.01 if 'sgdlr' not in params else params['sgdlr']
+        sgdmomt = 0.5 if 'sgdmomt' not in params else params['sgdmomt']
+        optimizer = tf.train.MomentumOptimizer(learning_rate=sgdlr,
+                                               momentum=sgdmomt)
         train_op = optimizer.minimize(loss, global_step=globalstep)
     else:
         loss = None
@@ -196,28 +199,36 @@ def _script_keras_test():
     print(evaluate)
 
 
-def script_train_and_eval_basemodel():
+def script_train_and_eval_basemodel(evaluate=True):
     folder = '/archive/RSNA/train_TFRs/'
-    model_dir = '/archive/RSNA/models/BaseResnetV2'
+    model_dir = '/archive/RSNA/models/BaseRes101V2'
 
     train_files = 'train_00[0-1][0-9].tfrecord'
     eval_files = 'train_002[0-9].tfrecord'
     train_files = [str(path) for path in Path(folder).glob(train_files)]
     eval_files = [str(path) for path in Path(folder).glob(eval_files)]
 
-    train_inputs = partial(input_fn, files=train_files, batch=8, epoch=100)
+    train_inputs = partial(input_fn, files=train_files, batch=8, epoch=25)
     eval_inputs = partial(input_fn, files=eval_files)
 
-    resnet = tf.estimator.Estimator(model_fn=model_fn,
-                                    model_dir=model_dir,
-                                    config=tf.estimator.RunConfig(session_config=DEVCONFIG))
+    lr = 0.05
+    momentum = 0.5
+    config = tf.estimator.RunConfig(session_config=DEVCONFIG)
 
-    resnet.train(input_fn=train_inputs)
-    predict = [pred for pred in resnet.predict(input_fn=eval_inputs)]
-    print(predict)
+    for step in range(10):
+        resnet = tf.estimator.Estimator(model_fn=model_fn,
+                                        model_dir=model_dir,
+                                        params={'sgdlr': lr,
+                                                'sgdmomt': momentum},
+                                        config=config)
 
-    # evaluate = resnet.evaluate(input_fn=eval_inputs)
-    # print(evaluate)
+        resnet.train(input_fn=train_inputs)
+
+        if evaluate:
+            resnet.evaluate(input_fn=eval_inputs)
+
+        tf.reset_default_graph()
+        lr = lr*0.8
 
 
 if __name__ == '__main__':

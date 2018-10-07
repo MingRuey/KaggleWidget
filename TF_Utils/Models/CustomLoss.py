@@ -6,6 +6,7 @@ Created on 9/22/18
 Scenario: stores various custom loss function.
 """
 
+import tensorflow as tf
 from tensorflow import scalar_mul
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import math_ops, nn, clip_ops, array_ops
@@ -56,6 +57,7 @@ def _weighted_categorical_crossentropy(target, output, from_logits=False, axis=1
                                                        logits=output)
 
 
+# keras-supported
 def weighted_categorical_crossentropy(y_true, y_pred):
     return K.mean(_weighted_categorical_crossentropy(y_true, y_pred), axis=-1)
 
@@ -92,8 +94,27 @@ def _focal_loss(alpha, gamma):
     return loss
 
 
+# keras-supported
 def focal_loss(y_true, y_pred):
-    return _focal_loss(alpha=0.1, gamma=4)(y_true, y_pred)
+    return _focal_loss(alpha=0.1, gamma=2)(y_true, y_pred)
+
+
+# tensorflow-supported
+def smoothl1(x, sigma, reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS):
+    """
+    Tensorflow implementation of smooth L1 loss defined in Fast RCNN:
+        (https://arxiv.org/pdf/1504.08083v2.pdf)
+
+                    0.5 * (sigma * x)^2         if |x| < 1/sigma^2
+    smoothL1(x) = {
+                    |x| - 0.5/sigma^2           otherwise
+    """
+    conditional = tf.less(tf.abs(x), 1 / sigma ** 2)
+    close = 0.5 * (sigma * x) ** 2
+    far = tf.abs(x) - 0.5 / sigma ** 2
+
+    return tf.losses.compute_weighted_loss(tf.where(conditional, close, far),
+                                           reduction=reduction)
 
 
 if __name__ == '__main__':

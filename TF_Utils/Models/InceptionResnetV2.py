@@ -129,7 +129,7 @@ def script_submit():
     prd_files = 'test_*.tfrecord'
 
     with open('/archive/Inclusive/LABELS_TO_CLSINDEX.pkl', 'rb') as f:
-        index_to_label= {value: key for key, value in pickle.load(f).items()}
+        index_to_label = {value: key for key, value in pickle.load(f).items()}
 
     def _to_label_string(nparray, thres_value):
         nparray = numpy.argwhere(nparray > thres_value)

@@ -254,7 +254,7 @@ class ResnetV2:
         self.datafmt = datafmt
         self.scope = scope
 
-    def __call__(self, inputs, istraining):
+    def __call__(self, inputs, istraining, pooling='avg'):
         assert self.datafmt in ('channels_first', 'channels_last')
 
         with tf.variable_scope(self.scope, tf.float32):
@@ -291,14 +291,16 @@ class ResnetV2:
             inputs = batch_norm(inputs, istraining, self.datafmt)
             inputs = tf.nn.relu(inputs)
 
-            # Final pooling layer
-            axes = [2, 3] if self.datafmt == 'channels_first' else [1, 2]
-            inputs = tf.reduce_mean(inputs, axes, keepdims=True)
-            inputs = tf.identity(inputs, 'final_reduce_mean')
+            if pooling:
+                # Final pooling layer
+                axes = [2, 3] if self.datafmt == 'channels_first' else [1, 2]
+                inputs = tf.reduce_mean(inputs, axes, keepdims=True)
+                inputs = tf.identity(inputs, 'final_reduce_mean')
 
-            # for resize, check: https://stackoverflow.com/questions/49547435
-            final_dim = tf.reduce_prod(inputs.get_shape().as_list()[1:])
-            inputs = tf.reshape(inputs, [-1, final_dim])
+                # for resize, check: https://stackoverflow.com/questions/49547435
+                final_dim = tf.reduce_prod(inputs.get_shape().as_list()[1:])
+                inputs = tf.reshape(inputs, [-1, final_dim])
+
             return inputs
 
 
