@@ -13,6 +13,7 @@ Scenario: Helper functions for doing box regression on anchors.
 
 import tensorflow as tf
 
+EPSILON = 1e-10
 
 def delta_regression(delta, anchors, img_shape):
     """
@@ -23,8 +24,13 @@ def delta_regression(delta, anchors, img_shape):
                    (used for clipping the output value)
 
     Return:
-        Tensor of shape [n, 4] of [Ymin, Xmin, Ymax, Xmax]
-               Values are clipped to in range [0, image size].
+        A tuple of two tensors (Proposals tensor, Valid Proposals)
+
+        Proposals tensor:  Tensor of shape [n, 4] of [Ymin, Xmin, Ymax, Xmax]
+                           Values are clipped to in range [0, image size].
+        Valid Proposals:   Boolean tensor of shape [n], it's the indices
+                           that corresponding proposals has negative/small
+                           height or width (True: noraml, False: negative/small)
     """
     dy, dx, dh, dw = tf.split(delta, 4, axis=1)
     y, x, h, w = tf.split(anchors, 4, axis=1)
@@ -33,11 +39,18 @@ def delta_regression(delta, anchors, img_shape):
     ymin = tf.clip_by_value(ymin, 0, img_shape[0] - 1)
     xmin = tf.clip_by_value(xmin, 0, img_shape[1] - 1)
 
-    ymax = tf.exp(dh)*h + y
-    xmax = tf.exp(dw)*w + x
+    # for numerical stability:
+    # exp(10.) ~ 2 * 10^5, is gauranteed to be clipped by than img_shape
+    ymax = tf.exp(tf.minimum(dh, 10.0))*h + y
+    xmax = tf.exp(tf.minimum(dw, 10.0))*w + x
     ymax = tf.clip_by_value(ymax, 1, img_shape[0] - 1)
     xmax = tf.clip_by_value(xmax, 1, img_shape[1] - 1)
-    return tf.concat([ymin, xmin, ymax, xmax], axis=1)
+
+    # filter index that has negative/small width or height
+    is_valid = tf.logical_and((ymax - ymin) > 10.0,
+                              (xmax - xmin) > 10.0)
+
+    return tf.concat([ymin, xmin, ymax, xmax], axis=1), is_valid[:, 0]
 
 
 def gtbox_to_delta(gt_boxes, anchors):
@@ -56,8 +69,8 @@ def gtbox_to_delta(gt_boxes, anchors):
     ya, xa, ha, wa = tf.split(anchors, 4, axis=1)
     y_delta = (yt - ya) / ha
     x_delta = (xt - xa) / wa
-    h_delta = tf.log((yt_max - yt) / ha)
-    w_delta = tf.log((xt_max - xt) / wa)
+    h_delta = tf.log((yt_max - yt) / ha + EPSILON)
+    w_delta = tf.log((xt_max - xt) / wa + EPSILON)
     return tf.concat([y_delta, x_delta, h_delta, w_delta], axis=1)
 
 
@@ -100,7 +113,7 @@ def iou_with_gt(anchors, gt_boxes):
     # some invalid boxes should have iou of 0 instead of NaN
     # If inter_area is 0, then this result will be 0; if inter_area is
     # not 0, then union is not too, therefore adding a epsilon is OK.
-    return inter_area / (union+1e-7)
+    return inter_area / (union+EPSILON)
 
 
 if __name__ == '__main__':

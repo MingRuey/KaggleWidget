@@ -27,7 +27,7 @@ CLSPROTO = {'image/source_id': tf.FixedLenFeature([], tf.string),
             'image/height': tf.FixedLenFeature([], tf.int64),
             'image/width': tf.FixedLenFeature([], tf.int64),
             'image/class/index':
-                tf.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
+                tf.FixedLenSequenceFeature([], tf.int64, allow_missing=True)
             }
 
 # proto for object detection on image
@@ -46,7 +46,7 @@ OIDPROTO = {'image/source_id': tf.FixedLenFeature([], tf.string),
             'image/object/bbox/ymax':
                 tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True),
             'image/object/class/index':
-                tf.FixedLenSequenceFeature([], tf.int64, allow_missing=True),
+                tf.FixedLenSequenceFeature([], tf.int64, allow_missing=True)
             }
 
 

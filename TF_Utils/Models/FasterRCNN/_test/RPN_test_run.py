@@ -3,7 +3,7 @@
 Created on 10/5/18
 @author: MRChou
 
-Scenario: test run rpn on dog/cat data.
+Scenario: test run rpn on fruit data.
 """
 
 import pathlib
@@ -51,7 +51,7 @@ def data_input(path, batch=1, epoch=1):
     def files_gener():
         img_files = (img for img in pathlib.Path(path).iterdir() if str(img).endswith('.jpg'))
         for img_file in img_files:
-            yield path+str(img_file.stem)+'.jpg', path+str(img_file.stem)+'.xml'
+            yield path+img_file.stem+'.jpg', path+img_file.stem+'.xml'
 
     dataset = tf.data.Dataset.from_generator(files_gener, (tf.string, tf.string))
     dataset = dataset.map(lambda image, xml: tf.py_func(_parse_data, [image, xml], [tf.float32, tf.float32]))
@@ -99,7 +99,7 @@ def model_fn(features, labels, mode, params):
 
     # create loss, train_op, predictions
     if istrain or iseval:  # i.e. not in predict mode
-        loss = rpn.loss(img_gtboxes=labels)
+        loss = rpn.loss(gtboxes=labels)
         sgdlr = 0.01 if 'sgdlr' not in params else params['sgdlr']
         sgdmomt = 0.5 if 'sgdmomt' not in params else params['sgdmomt']
         optimizer = tf.train.MomentumOptimizer(learning_rate=sgdlr,
@@ -111,7 +111,7 @@ def model_fn(features, labels, mode, params):
 
     if ispredict or iseval:  # i.e. not in train mode
         predictions = tf.image.draw_bounding_boxes(features['image'],
-                                                   rpn.proposals()/600)
+                                                   rpn.proposals(nms_top_n=5)/600)
     else:
         predictions = None
 
@@ -128,11 +128,12 @@ def model_fn(features, labels, mode, params):
 
 
 def script_test_predict():
-    path = '/rawdata/_ToyDataSet/FruitImg_ObjDetection/train/'
+    train_path = '/rawdata/_ToyDataSet/FruitImg_ObjDetection/train/'
+    test_path = '/rawdata/_ToyDataSet/FruitImg_ObjDetection/test/'
     model_dir = '/archive/RSNA/models/Test/'
 
-    train_input_fn = partial(data_input, path=path, epoch=100)
-    pred_input_fn = partial(data_input, path=path, epoch=1)
+    train_input_fn = partial(data_input, path=train_path, epoch=100)
+    pred_input_fn = partial(data_input, path=test_path, epoch=1)
     config = tf.estimator.RunConfig(session_config=DEVCONFIG)
 
     model = tf.estimator.Estimator(model_fn=model_fn,
@@ -144,11 +145,10 @@ def script_test_predict():
     for result in model.predict(input_fn=pred_input_fn):
         plt.imshow(result.astype(numpy.uint8))
         plt.show()
-        break
 
 
 if __name__ == '__main__':
     # _script_examine_input()
     script_test_predict()
-    pass
+
 

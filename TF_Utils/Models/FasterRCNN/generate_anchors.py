@@ -45,20 +45,20 @@ def _get_anchors_by_cell(row, col, base_size, scales, ratios):
                             tf.fill([num, 1], xmin)], axis=1)
 
     # hw_mat is a matrix of shape [n, 2]:
-    # [[α1*h1, α1*w1],
-    #  [α1*h2, α1*w2],
+    # [[α1*base_size*h1, α1*base_size*w1],
+    #  [α1*base_size*h2, α1*base_size*w2],
     #  ...
-    #  [α1*hk, α1*wk],
-    #  [α2*h1, α2*w1],
-    #  [α2*h2, α2*w2],
+    #  [α1*base_size*hk, α1*base_size*wk],
+    #  [α2*base_size*h1, α2*base_size*w1],
+    #  [α2*base_size*h2, α2*base_size*w2],
     #  ...
     #  [αn*hk, αn*wk]]
     #
     #  where αi is the i-th number in scales.
     #        hn, wn correpond the n-th number in ratios [r1, r2, ..., rn],
     #               with hn = (1/rn) ** 0.5, wn = rn ** 0.5
-    h_vec = tf.sqrt(1/ratios)
-    w_vec = tf.sqrt(ratios)
+    h_vec = base_size*tf.sqrt(1/ratios)
+    w_vec = base_size*tf.sqrt(ratios)
     h_vec = tf.reshape(tf.tensordot(scales, h_vec, axes=0), shape=[num, 1])
     w_vec = tf.reshape(tf.tensordot(scales, w_vec, axes=0), shape=[num, 1])
     hw_mat = tf.concat([h_vec, w_vec], axis=1)
@@ -105,14 +105,14 @@ def anchor_board_check(anchors, img_shape):
         img_shape: Tuple specify input image shape.
 
     Return:
-        Boolean tensor of shape [n, 1], with each element is whether the anchor
+        Boolean tensor of shape [n, ], with each element is whether the anchor
         is inside image pixel range.
     """
     row, col, height, width = tf.split(anchors, 4, axis=1)
     index_ge_0 = tf.logical_and(row > 0, col > 0)
     inside_img = tf.logical_and((row + height) < img_shape[0],
                                 (col + width) < img_shape[1])
-    return tf.logical_and(index_ge_0, inside_img)
+    return tf.logical_and(index_ge_0, inside_img)[:, 0]
 
 
 if __name__ == '__main__':

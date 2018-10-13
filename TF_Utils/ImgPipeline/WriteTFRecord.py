@@ -17,11 +17,12 @@ import tensorflow as tf
 
 
 class ImgObjAbstract:
-    """ A abstract interface that holds a single image and its labels."""
+    """A abstract interface that holds a single image and its labels."""
 
     def to_tfexample(self):
-        """Turn image and labels into an tensorflow example.
-           Should raise NotImplementedError facing unknown flag.
+        """
+        Turn image and labels into an tensorflow example.
+        Should raise NotImplementedError facing unknown flag.
         """
         raise NotImplementedError
 
@@ -55,7 +56,8 @@ def write_tfrecord(imgobj_gener,
                    num_imgs_per_file,
                    fout,
                    num_threads=40):
-    """Write ImgObj classes into tfrecord file from a generator
+    """
+    Write ImgObj classes into tfrecord file from a generator
 
     Args:
         imgobj_gener: a generator yield ImgObj classes

@@ -294,12 +294,12 @@ class ResnetV2:
             if pooling:
                 # Final pooling layer
                 axes = [2, 3] if self.datafmt == 'channels_first' else [1, 2]
-                inputs = tf.reduce_mean(inputs, axes, keepdims=True)
+                inputs = tf.reduce_mean(inputs, axes)
                 inputs = tf.identity(inputs, 'final_reduce_mean')
 
-                # for resize, check: https://stackoverflow.com/questions/49547435
-                final_dim = tf.reduce_prod(inputs.get_shape().as_list()[1:])
-                inputs = tf.reshape(inputs, [-1, final_dim])
+                # Resize, check: https://stackoverflow.com/questions/49547435
+                # final_dim = tf.reduce_prod(inputs.get_shape().as_list()[1:])
+                # inputs = tf.reshape(inputs, [-1, final_dim])
 
             return inputs
 

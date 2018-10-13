@@ -30,14 +30,17 @@ def _get_id_from_path(path):
 
 
 def _parse_labels(label):
-    return {'xmins': label['x'],
-            'xmaxs': [xmin + width for xmin, width in
-                      zip(label['x'], label['width'])],
-            'ymins': label['y'],
-            'ymaxs': [ymin + height for ymin, height in
-                      zip(label['y'], label['height'])],
-            'classes': [int(label['Target'])] * len(label['x'])
-            }
+    if label:
+        return {'xmins': label['x'],
+                'xmaxs': [xmin + width for xmin, width in
+                          zip(label['x'], label['width'])],
+                'ymins': label['y'],
+                'ymaxs': [ymin + height for ymin, height in
+                          zip(label['y'], label['height'])],
+                'classes': [int(label['Target'])] * len(label['x'])
+                }
+    else:
+        return {'xmins': [], 'xmaxs': [], 'ymins': [], 'ymaxs': [], 'classes': []}
 
 
 class ImgObj(ImgObjAbstract):
@@ -78,15 +81,30 @@ class ImgObj(ImgObjAbstract):
 
 if __name__ == '__main__':
 
-    img_path = '/rawdata/RSNA_Pneumonia/imgs_train/'
+    # img_path = '/rawdata/RSNA_Pneumonia/imgs_train/'
+    #
+    # path_gener = pathlib.Path(img_path).iterdir()
+    #
+    # imgobj_gener = (ImgObj(imgid=_get_id_from_path(path),
+    #                        path=str(path),
+    #                        label=ID_TO_LABEL[_get_id_from_path(path)])
+    #                 for path in path_gener if not path.is_dir())
+    #
+    # write_tfrecord(imgobj_gener=imgobj_gener,
+    #                num_imgs_per_file=1000,
+    #                fout='/archive/RSNA/train_TFRs/train.tfrecord')
+
+    # --
+
+    img_path = '/rawdata/RSNA_Pneumonia/imgs_test/'
 
     path_gener = pathlib.Path(img_path).iterdir()
 
     imgobj_gener = (ImgObj(imgid=_get_id_from_path(path),
                            path=str(path),
-                           label=ID_TO_LABEL[_get_id_from_path(path)])
+                           label=[])
                     for path in path_gener if not path.is_dir())
 
     write_tfrecord(imgobj_gener=imgobj_gener,
                    num_imgs_per_file=1000,
-                   fout='/archive/RSNA/train_TFRs/train.tfrecord')
+                   fout='/archive/RSNA/test_TFRs/test.tfrecord')

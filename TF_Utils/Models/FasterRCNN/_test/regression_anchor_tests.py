@@ -27,10 +27,13 @@ def iou_with_gt_test():
     #                        =[[0.,    0.05 ],
     #                          [0.181, 0.   ],
     #                          [0.222, 0.   ]]
-    result = iou_with_gt(anchors, gt_boxes,)
+    result = iou_with_gt(anchors, gt_boxes)
+
     index = tf.argmax(result, axis=1)
-    result = tf.reduce_max(result, axis=1, keepdims=True)
     gather = tf.gather(gt_boxes, index)
+
+    result = tf.reduce_max(result, axis=1)
+
     a, b, c = tf.Session().run([index, result, gather])
     print(a)
     print(b)

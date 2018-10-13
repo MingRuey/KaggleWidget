@@ -15,6 +15,7 @@ CONFIG = '/home/mrchou/code/KaggleWidget/TF_Utils/Config/examples/pipeline.cfg'
 class _TrainCfg:
     pass
 
+
 class _ModelCfg:
     pass
 
