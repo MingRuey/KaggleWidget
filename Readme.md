@@ -28,6 +28,7 @@ Models:
 
     Some CNN models, currently including:
     
+    UNet: full Unet implementation.
     Resnet.py: Resnet V2 blocks, bottleneck or not, can be used to create Resnet structure.
     FasterRCNN.py: Including Regional proposal networks(RPN) and final ROI layers for faster-RCNN. 
     InceptionResnetV2.py: Direct import of InceptionResnetV2 from tf.keras.applications.
