@@ -15,6 +15,7 @@ import tensorflow as tf
 
 EPSILON = 1e-10
 
+
 def delta_regression(delta, anchors, img_shape):
     """
     Args:
@@ -109,6 +110,49 @@ def iou_with_gt(anchors, gt_boxes):
     gt_boxes_area = w21 * h21
 
     union = (anchors_area + tf.transpose(gt_boxes_area)) - inter_area
+
+    # some invalid boxes should have iou of 0 instead of NaN
+    # If inter_area is 0, then this result will be 0; if inter_area is
+    # not 0, then union is not too, therefore adding a epsilon is OK.
+    return inter_area / (union+EPSILON)
+
+
+def walkerlala_iou(bboxes1, bboxes2):
+    """
+    From walkerlala's comment on:
+    https://gist.github.com/vierja/38f93bb8c463dce5500c0adf8648d371
+
+    Args:
+        bboxes1: shape (total_bboxes1, 4)
+            with x1, y1, x2, y2 point order.
+        bboxes2: shape (total_bboxes2, 4)
+            with x1, y1, x2, y2 point order.
+
+        p1 *-----
+           |     |
+           |_____* p2
+
+    Returns:
+        Tensor with shape (total_bboxes1, total_bboxes2)
+        with the IoU (intersection over union) of bboxes1[i] and bboxes2[j]
+        in [i, j].
+    """
+
+    x11, y11, x12, y12 = tf.split(bboxes1, 4, axis=1)
+    x21, y21, x22, y22 = tf.split(bboxes2, 4, axis=1)
+
+    xI1 = tf.maximum(x11, tf.transpose(x21))
+    xI2 = tf.minimum(x12, tf.transpose(x22))
+
+    yI1 = tf.maximum(y11, tf.transpose(y21))
+    yI2 = tf.minimum(y12, tf.transpose(y22))
+
+    inter_area = tf.maximum((xI2 - xI1), 0) * tf.maximum((yI2 - yI1), 0)
+
+    bboxes1_area = (x12 - x11) * (y12 - y11)
+    bboxes2_area = (x22 - x21) * (y22 - y21)
+
+    union = (bboxes1_area + tf.transpose(bboxes2_area)) - inter_area
 
     # some invalid boxes should have iou of 0 instead of NaN
     # If inter_area is 0, then this result will be 0; if inter_area is

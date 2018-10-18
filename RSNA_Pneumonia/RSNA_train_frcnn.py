@@ -97,6 +97,7 @@ def model_fn(features, labels, mode, params):
     inputs = features['image']
     resnet = ResnetV2(blocks=[3, 4, 6, 3],
                       block_strides=[2, 2, 2, 1])
+
     inputs = resnet(inputs=inputs,
                     istraining=istrain,
                     pooling=None)
@@ -115,6 +116,10 @@ def model_fn(features, labels, mode, params):
         frcnnloss = frcnn.loss(gtcls=labels['class'], gtboxes=labels['bbox'])
         total_loss = frcnnloss + rpnloss
 
+        tf.summary.scalar('rpn_loss', rpnloss)
+        tf.summary.scalar('frcnn_loss', frcnnloss)
+
+    if istrain:
         sgdlr = 0.01 if 'sgdlr' not in params else params['sgdlr']
         sgdmomt = 0.5 if 'sgdmomt' not in params else params['sgdmomt']
         optimizer = tf.train.MomentumOptimizer(learning_rate=sgdlr,
@@ -124,15 +129,12 @@ def model_fn(features, labels, mode, params):
         with tf.control_dependencies(extra_update_ops):
             train_op = optimizer.minimize(total_loss, global_step=globalstep)
 
-        tf.summary.scalar('rpn_loss', rpnloss)
-        tf.summary.scalar('frcnn_loss', frcnnloss)
         tf.summary.scalar('sgdlr', sgdlr)
 
     predictions = None
     if ispredict or iseval:  # i.e. not in train mode
         predictions = frcnn.predict()
-        predictions.update({'image': features['image'],
-                            'image_id': features['image_id']})
+        predictions.update({'image_id': features['image_id']})
 
     eval_metric = None
     if iseval:
@@ -147,26 +149,28 @@ def model_fn(features, labels, mode, params):
 
 def script_train():
     folder = '/archive/RSNA/train_TFRs/'
-    model_dir = '/archive/RSNA/models/Test/'
+    model_dir = '/archive/RSNA/models/FasterRCNN/'
 
     train_files = 'train_00[0-9][0-9].tfrecord'
     train_files = [str(path) for path in pathlib.Path(folder).glob(train_files)]
 
-    train_input_fn = partial(input_fn, files=train_files, epoch=2, batch=1)
+    train_input_fn = partial(input_fn, files=train_files, epoch=1, batch=1)
     config = tf.estimator.RunConfig(session_config=DEVCONFIG)
 
-    lr = 0.01
-    momentum = 0.1
-    # model = tf.estimator.Estimator(model_fn=model_fn, model_dir=model_dir,
-    #                                config=config,
-    #                                params={'sgdlr': lr, 'sgdmomt': momentum})
+    lr = 0.005
+    momentum = 0.3
 
-    # hooks = [tf_debug.LocalCLIDebugHook()]
-    # model.train(input_fn=train_input_fn, hooks=hooks)
     for step in range(10):
+        if step == 0:
+            ws = tf.estimator.WarmStartSettings(ckpt_to_initialize_from='/archive/RSNA/models/BaseRes50V2/',
+                                                vars_to_warm_start='ResnetV2/*')
+        else:
+            ws = None
+
         model = tf.estimator.Estimator(model_fn=model_fn,
                                        model_dir=model_dir,
                                        config=config,
+                                       warm_start_from=ws,
                                        params={'sgdlr': lr,
                                                'sgdmomt': momentum})
 
@@ -176,6 +180,46 @@ def script_train():
         lr = lr*0.8
 
 
+def script_predict():
+    folder = '/archive/RSNA/train_TFRs/'
+    model_dir = '/archive/RSNA/models/FasterRCNN'
+
+    eval_files = 'train_002[0-9].tfrecord'
+    eval_files = [str(path) for path in pathlib.Path(folder).glob(eval_files)]
+
+    eval_input_fn = partial(input_fn, files=eval_files, epoch=1, batch=1)
+    config = tf.estimator.RunConfig(session_config=DEVCONFIG)
+
+    model = tf.estimator.Estimator(model_fn=model_fn, model_dir=model_dir,
+                                   config=config)
+
+    for result in model.predict(input_fn=eval_input_fn):
+        print(result)
+
+    # with open('/archive/RSNA/predictions.csv', 'w') as fout:
+    #     fout.write('patientId, PredictionString\n')
+    #     for result in model.predict(input_fn=train_input_fn):
+    #         boxes = ''
+    #         for cls, prob, box in zip(result['class'], result['probability'], result['bbox']):
+    #             xmin = int(box[1])
+    #             ymin = int(box[0])
+    #             width = int(box[3] - box[1])
+    #             height = int(box[2] - box[0])
+    #
+    #             box = '{cls} {prob} {xmin} {ymin} {width} {height} '
+    #             boxes += box.format(cls=cls,
+    #                                 prob=prob,
+    #                                 xmin=xmin,
+    #                                 ymin=ymin,
+    #                                 width=width,
+    #                                 height=height)
+    #
+    #         text = '{imgid},{boxes}\n'
+    #         fout.write(text.format(imgid=result['image_id'].decode(),
+    #                                boxes=boxes))
+
+
 if __name__ == '__main__':
     # _script_examine_input()
-    script_train()
+    # script_train()
+    script_predict()

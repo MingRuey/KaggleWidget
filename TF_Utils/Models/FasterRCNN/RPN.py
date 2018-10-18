@@ -19,12 +19,12 @@ from TF_Utils.Models.FasterRCNN.generate_anchors import anchor_board_check
 # params initialized when RPN.__init__(...), see __init__ doc string.
 CHANNEL = 'channels_first'
 RPN_CHNS = 512
-ANC_SIZES = (4, 8, 12, 16)
+ANC_SIZES = (2, 4, 8, 10, 12)
 ANC_RATIOS = (0.5, 1, 2)
 
 # params when RPN.someMthd called
-IOU_THRES = 0.6  # threshold for determining positive/negative anchors
-MINIBATCH = 128  # number of anchors used to calculate RPN loss
+IOU_THRES = 0.5  # threshold for determining positive/negative anchors
+MINIBATCH = 256  # number of anchors used to calculate RPN loss
 BOXLOSSWEIGHT = 10  # for weighting between cls_loss and box_loss
 
 
@@ -143,7 +143,7 @@ class RPN:
             _ones = tf.ones_like(ious)
             _zero = tf.zeros_like(ious)
             labels = tf.where(ious > iou_thres, _ones, -1*_ones)
-            labels = tf.where(ious < 0.2, _zero, labels)
+            labels = tf.where(ious < 0.1, _zero, labels)
 
             # thresholding on anchor boarders
             labels = tf.where(self._validAnchors, labels, -1*_ones)
@@ -201,7 +201,7 @@ class RPN:
 
             return (1/batch)*cls_loss + (weight/self.featNum)*box_loss
 
-    def proposals(self, nms_top_n, nms_thres=0.7):
+    def proposals(self, nms_top_n, nms_thres=0.6):
         # Return:
         #       Tensor of shape [nms_top_n, 4],
         #       each row being [Ymin, Xmin, Ymax, Xmax] on input image scale.

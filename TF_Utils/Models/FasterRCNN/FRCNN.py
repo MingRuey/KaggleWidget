@@ -15,8 +15,8 @@ from TF_Utils.Models.FasterRCNN.regression_anchors import gtbox_to_delta
 from TF_Utils.Models.FasterRCNN.regression_anchors import delta_regression
 
 # params
-NMS_TOPN = 512  # number of anchors selected after NMS.
-MINIBATCH = 64  # number of anchors used to calculate RPN loss
+NMS_TOPN = 1024  # number of anchors selected after NMS.
+MAX_NUM_POS = 32  # number of maximum positive proposals used to calculate  loss
 FC_HIDDEN = [1024, 1024]
 FC_DROPOUT = 0.8
 
@@ -29,13 +29,13 @@ class FastRCNN:
         self.clsNum = num_of_classes
         self.isTrain = is_trainning
 
-        self.proposals = tf.stop_gradient(rpn.proposals(nms_top_n=NMS_TOPN))
-        self.roi = self._roi_pooling_and_fc(self.proposals)
+        self.proposals = self._get_proposals(nms_top_n=NMS_TOPN)
+        self.roi = self._roi_pooling(self.proposals)
         self.fc = self._fc(self.roi)
         self.clsPred = self._cls_pred(self.fc)
         self.boxPred = self._box_pred(self.fc)
 
-    def _roi_pooling_and_fc(self, proposals):
+    def _roi_pooling(self, proposals):
         with tf.variable_scope('frcnn/roi'):
             # map proposals back to feature map
             # each proposal represents (row_min, col_min, row_max, col_max)
@@ -62,6 +62,7 @@ class FastRCNN:
                                           strides=2,
                                           padding='SAME',
                                           data_format=self.RPN.fmt)
+
             return roi
 
     def _fc(self, roi):
@@ -83,6 +84,13 @@ class FastRCNN:
     def _box_pred(self, fc_layer_innput):
         with tf.variable_scope('frcnn/box_pred'):
             return tf.layers.dense(fc_layer_innput, 4)
+
+    def _get_proposals(self, nms_top_n):
+        # Note that proposals are in (Ymin, Xmin, Ymax, Xmax),
+        # while return values are in (Ymin, Xmin, Height, Width)
+        proposals = tf.stop_gradient(self.RPN.proposals(nms_top_n=nms_top_n))
+        ymin, xmin, ymax, xmax = tf.split(proposals, 4, axis=1)
+        return tf.concat([ymin, xmin, ymax-ymin, xmax-xmin], axis=1)
 
     def _proposal_labels(self, gtcls, gtboxes, iou_thres=0.5):
         """
@@ -114,23 +122,23 @@ class FastRCNN:
         return labels, gtbox
 
     @staticmethod
-    def _get_batch_index(labels, minibatch):
-        # Randomly choose 0.25*minibatch indices from labels with value 0,
-        #             and 0.75*minibatch indices from the rest,
+    def _get_batch_index(labels, max_num_pos):
+        # Choose at most max_num_pos indices from labels with non-background.
+        # Then choose as many as background labels.
         # Return those indices.
         # (indices than can be used by tf.gather by the caller)
         with tf.variable_scope('batch_index'):
             index_obj = tf.where(tf.not_equal(labels, 0))
             index_obj = tf.random_shuffle(index_obj)
-            index_obj = index_obj[:minibatch//4, 0]
+            index_obj = index_obj[:max_num_pos, 0]
 
             index_bg = tf.where(tf.equal(labels, 0))
             index_bg = tf.random_shuffle(index_bg)
-            index_bg = index_bg[:3*minibatch//4, 0]
+            index_bg = index_bg[:tf.size(index_obj), 0]
 
         return index_obj, index_bg
 
-    def loss(self, gtcls, gtboxes, batch=MINIBATCH):
+    def loss(self, gtcls, gtboxes, batch=MAX_NUM_POS):
         """
         Args:
             gtcls: Tensor of shape [g, ], class labels for groud truth objects.
@@ -138,12 +146,12 @@ class FastRCNN:
             gtboxes: Tensor of shape [g, 4], ground truth boxes.
                      g is the number of ground truth labels.
 
-            batch: number of proposals from rpn evaluated in loss.
+            batch: number of positive proposals from rpn evaluated in loss.
         """
         with tf.variable_scope('frcnn/loss'):
             labels, gt_maxiou = self._proposal_labels(gtcls, gtboxes)
 
-            # sample 128 anchors as mini-batch with 1:1 positive negative ratio
+            # sample proposals as mini-batch with 1:1 positive negative ratio
             index_obj, index_bg = self._get_batch_index(labels, batch)
 
             # calculate class loss and box regression loss
@@ -156,7 +164,6 @@ class FastRCNN:
             # calculate box regression loss
             delta = self.boxPred - gtbox_to_delta(gt_maxiou, self.proposals)
             box_loss = smoothl1(tf.gather(delta, index_obj), sigma=1)
-
             return (1/batch) * (cls_loss + box_loss)
 
     def predict(self):
@@ -164,7 +171,6 @@ class FastRCNN:
             pred_box, is_valid = delta_regression(self.boxPred,
                                                   self.proposals,
                                                   self.RPN.imgShape)
-
             pred_box = tf.boolean_mask(pred_box, is_valid)
             pred_prob = tf.boolean_mask(self.clsPred, is_valid)
             pred_prob = tf.nn.softmax(pred_prob, axis=1)

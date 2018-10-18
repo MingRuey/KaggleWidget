@@ -11,45 +11,16 @@ import pathlib
 from functools import partial
 
 import tensorflow as tf
+from tensorflow.metrics import recall_at_thresholds as recall
+from tensorflow.metrics import precision_at_thresholds as precision
 
-from TF_Utils.ImgPipeline.img_feature_proto import OIDPROTO
+from RSNA_Pneumonia.RSNA_DataInput import keras_input_fn
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 DEVCONFIG = tf.ConfigProto()
 DEVCONFIG.gpu_options.allow_growth = True
 DEVCONFIG.allow_soft_placement = True
-
-_IMG_SHAPE = (299, 299)
-
-
-def _parse_func(example):
-    parsed_feature = tf.parse_single_example(example, features=OIDPROTO)
-
-    imgid = parsed_feature['image/source_id']
-
-    # decode img and change dtype to float32
-    img = parsed_feature['image/encoded']
-    img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.resize_images(img, size=_IMG_SHAPE)
-    img = tf.cast(img, dtype=tf.float32)
-
-    cls = parsed_feature['image/object/class/index'][0]
-    cls = tf.reshape(cls, [1])
-
-    return imgid, img, cls
-
-
-def keras_input_fn(files, epoch=1, batch=1):
-    with tf.name_scope('imput_pipleline'):
-        dataset = tf.data.TFRecordDataset(files)
-        dataset = dataset.map(_parse_func)
-        dataset = dataset.repeat(epoch)
-        dataset = dataset.batch(batch)
-        dataset = dataset.make_one_shot_iterator()
-        imgid, img, cls = dataset.get_next()
-
-    return {'input_1': img, 'image_id': imgid}, cls
 
 
 def _script_examine_input():
@@ -59,8 +30,8 @@ def _script_examine_input():
     train_files = [str(path) for path in pathlib.Path(folder).glob(train_files)]
 
     with tf.Session() as sess:
-        feature, label = keras_input_fn(train_files, batch=8)
-        for _ in range(10):
+        feature, label = keras_input_fn(train_files, batch=8, include_neg=False)
+        for _ in range(15):
             img, cls = sess.run([feature, label])
             print(cls, cls.shape)
 
@@ -78,18 +49,18 @@ def _acc_model_fn_wrapper(model_fn):
         imgid = features.pop('image_id')
         spec = model_fn(features, labels, mode, params)
 
-        output = spec.predictions['output']
-        _ones = tf.ones_like(output)
-        _zeros = tf.zeros_like(output)
-        pred_at_03 = tf.where(output > 0.3, _ones, _zeros)
-        pred_at_05 = tf.where(output > 0.5, _ones, _zeros)
-        pred_at_07 = tf.where(output > 0.7, _ones, _zeros)
-        eval_metric = {'acc @ 0.3': tf.metrics.accuracy(labels, pred_at_03),
-                       'acc @ 0.5': tf.metrics.accuracy(labels, pred_at_05),
-                       'acc @ 0.7': tf.metrics.accuracy(labels, pred_at_07)}
-
-        spec.eval_metric_ops.update(eval_metric)
         spec.predictions.update({'image_id': imgid})
+
+        if mode == tf.estimator.ModeKeys.EVAL:
+            output = spec.predictions['output']
+            eval_metric = {'Recalls': recall(labels,
+                                             output,
+                                             (0.1, 0.3, 0.5, 0.7, 0.9)),
+                           'Precision': precision(labels,
+                                                  output,
+                                                  (0.1, 0.3, 0.5, 0.7, 0.9))}
+
+            spec.eval_metric_ops.update(eval_metric)
 
         return tf.estimator.EstimatorSpec(mode=spec.mode,
                                           loss=spec.loss,
@@ -107,7 +78,7 @@ def _acc_model_fn_wrapper(model_fn):
 
 def keras_inceptresv2(config, sgdlr=0.01, sgdmomt=0.5):
     basemodel = tf.keras.applications.InceptionResNetV2(include_top=False,
-                                                        input_shape=[299, 299, 3],
+                                                        input_shape=[1024, 512, 3],
                                                         pooling='avg',
                                                         weights='imagenet')
     featurelayer = basemodel.output
@@ -125,20 +96,28 @@ def keras_inceptresv2(config, sgdlr=0.01, sgdmomt=0.5):
     return model
 
 
-def script_train():
+def script_train_keras():
     folder = '/archive/RSNA/train_TFRs/'
-    model_dir = '/archive/RSNA/models/Classify/'
+    model_dir = '/archive/RSNA/models/Classifier/KerasIncepRes/'
 
     train_files = 'train_00[0-1][0-9].tfrecord'
     train_files = [str(path) for path in pathlib.Path(folder).glob(train_files)]
-    train_input_fn = partial(keras_input_fn, files=train_files, epoch=5, batch=8)
+    train_input_fn = partial(keras_input_fn,
+                             files=train_files,
+                             epoch=5, batch=4,
+                             include_neg=True,
+                             augment=True)
 
     eval_files = 'train_002[0-6].tfrecord'
     eval_files = [str(path) for path in pathlib.Path(folder).glob(eval_files)]
-    eval_input_fn = partial(keras_input_fn, files=eval_files, epoch=1, batch=8)
+    eval_input_fn = partial(keras_input_fn,
+                            files=eval_files,
+                            epoch=1, batch=1,
+                            include_neg=True,
+                            augment=False)
 
-    lr = 0.01
-    momentum = 0.3
+    lr = 0.05
+    momentum = 0.5
     config = tf.estimator.RunConfig(model_dir=model_dir,
                                     session_config=DEVCONFIG)
 
@@ -147,11 +126,12 @@ def script_train():
         model_fn = _acc_model_fn_wrapper(model.model_fn)
         model = _reset_model_fn(model_fn, model)
 
+        print(model.evaluate(input_fn=eval_input_fn))
         model.train(input_fn=train_input_fn)
         tf.keras.backend.clear_session()
         lr = lr*0.9
 
 
 if __name__ == '__main__':
-    # _script_examine_input()
-    script_train()
+    _script_examine_input()
+    # script_train_keras()

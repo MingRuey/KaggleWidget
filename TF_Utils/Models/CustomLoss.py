@@ -100,7 +100,7 @@ def focal_loss(y_true, y_pred):
 
 
 # tensorflow-supported
-def smoothl1(x, sigma, reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS):
+def smoothl1(x, sigma, reduction=tf.losses.Reduction.SUM):
     """
     Tensorflow implementation of smooth L1 loss defined in Fast RCNN:
         (https://arxiv.org/pdf/1504.08083v2.pdf)
