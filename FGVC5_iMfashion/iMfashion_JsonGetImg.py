@@ -8,23 +8,25 @@ https://www.kaggle.com/c/imaterialist-challenge-fashion-2018
 
 """
 # for module
-import ijson
-import urllib.request
-from iMfashion_JsonExtractLabel import urlfromjson
-# for main()
 import os
 import functools
-from multiprocessing import Pool
+import concurrent.futures as futures
+
+import urllib.request
+import ijson
+
+from iMfashion_JsonExtractLabel import urlfromjson
 
 
-def img_download(url, filename, path):
+def img_download(task, path):
     """Download the image from the *url, store it as *filename inside the *path."""
-    if not os.path.isfile(path+'\\'+filename):  # if the file already exists, pass it.
+    url, filename = task
+    if not os.path.isfile(path+'/'+filename):  # if the file already exists, pass it.
         try:
             img = urllib.request.urlopen(url)
             img = img.read()
             if img:
-                file = open(path+'\\'+filename, 'wb')
+                file = open(path+'/'+filename, 'wb')
                 file.write(img)
                 file.close()
         except (OSError, IOError) as err:
@@ -64,23 +66,17 @@ def urlgenerator_ijson(file):
 
 
 def main():
-    try:
-        file = open('data_train.json')
-        path = 'Y:/FGVC5_iMfashion/imgs_train'
+
+    with open('/rawdata/FGVC5_iMfashion/data_test.json') as file:
+        path = '/rawdata/FGVC5_iMfashion/imgs_test'
         if not os.path.exists(path):
             os.makedirs(path)
             
         # download images in multiproccesses
         func = functools.partial(img_download, path=path)
-        task = urlgenerator_json(file)
-        with Pool(processes=10) as p:
-            p.starmap(func, task)
-        p.join()
-            
-    except IOError as err:
-        print(err)
-    finally:
-        file.close()
+        task = urlgenerator_ijson(file)
+        with futures.ThreadPoolExecutor(16) as exe:
+            res = exe.map(func, task)
 
 
 if __name__ == '__main__':

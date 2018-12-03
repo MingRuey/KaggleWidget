@@ -41,10 +41,10 @@ def canny_split(img):
 
 
 def main():
-    path = '/home/mrchou/code/KaggleWidget/FGVC5_iMfashion/'
-    img = cv2.imread(path+'m_single_colorful.jpg')[...,::-1]
+    path = '/home/mrchou/code/KaggleWidget/FGVC5_iMfashion/ImgMaskExamples/'
+    img = cv2.imread(path+'s_single_colorful.jpg')[...,::-1]
 
-    sal = salient(img, viewsize=(20,20))
+    sal = salient(img, viewsize=(10, 10))
     sal = sal[:,:, numpy.newaxis]
     #sal = salient(img*sal, viewsize=(5,5))
     #sal = sal[:, :, numpy.newaxis]
