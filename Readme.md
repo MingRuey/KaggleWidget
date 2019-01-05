@@ -3,12 +3,20 @@ Customed and frequently used tools in Kaggle competitions.
 
 > Codes are organized by their compititions.
 
->  TF_Utils: at draft stage, general support functions for building TF models  
+>  TS_Utils: Convenient time series analysis tools
+>  TF_Utils: General support functions for building TensorFlow models  
 >> store all data and label into tfrecord files, and use Dataset and Estimator API for trainning
 
->  9/17 update -- add TF_Utils   
+>  Jan. 2018 update -- add TS_Utils
+>  Sep. 2017 update -- add TF_Utils   
 >> Deprecation: CNN utils,  move old into Google_OpenImg  
 >> Deprecation: KerasUtils, keras already merged with tensorflow, moved to Legacy               
+
+About TS_Utils:
+---
+
+seriesObj: classes for series data from various sources (csv, parquet, ...) 
+stats_visualize: statistics and analysis visualization for series data
 
 About TF_Utils:
 ---
