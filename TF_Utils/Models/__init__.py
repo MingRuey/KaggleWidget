@@ -5,6 +5,3 @@ Created on 9/17/18
 
 Scenario: __init__.py for TF_Utils.Models
 """
-
-if __name__ == '__main__':
-    pass

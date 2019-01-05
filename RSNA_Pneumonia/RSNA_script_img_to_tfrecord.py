@@ -81,18 +81,18 @@ class ImgObj(ImgObjAbstract):
 
 if __name__ == '__main__':
 
-    # img_path = '/rawdata/RSNA_Pneumonia/imgs_train/'
-    #
-    # path_gener = pathlib.Path(img_path).iterdir()
-    #
-    # imgobj_gener = (ImgObj(imgid=_get_id_from_path(path),
-    #                        path=str(path),
-    #                        label=ID_TO_LABEL[_get_id_from_path(path)])
-    #                 for path in path_gener if not path.is_dir())
-    #
-    # write_tfrecord(imgobj_gener=imgobj_gener,
-    #                num_imgs_per_file=1000,
-    #                fout='/archive/RSNA/train_TFRs/train.tfrecord')
+    img_path = '/rawdata/RSNA_Pneumonia/imgs_train/'
+
+    path_gener = pathlib.Path(img_path).iterdir()
+
+    imgobj_gener = (ImgObj(imgid=_get_id_from_path(path),
+                           path=str(path),
+                           label=ID_TO_LABEL[_get_id_from_path(path)])
+                    for path in path_gener if not path.is_dir())
+
+    write_tfrecord(imgobj_gener=imgobj_gener,
+                   num_imgs_per_file=1000,
+                   fout='/archive/RSNA/trainTFRs/train.tfrecord')
 
     # --
 
@@ -107,4 +107,4 @@ if __name__ == '__main__':
 
     write_tfrecord(imgobj_gener=imgobj_gener,
                    num_imgs_per_file=1000,
-                   fout='/archive/RSNA/test_TFRs/test.tfrecord')
+                   fout='/archive/RSNA/testTFRs/test.tfrecord')

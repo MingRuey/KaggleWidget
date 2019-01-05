@@ -12,7 +12,9 @@ import pandas
 
 
 def script():
-    sheet = pandas.read_csv('/rawdata/RSNA_Pneumonia/stage_1_train_labels.csv')
+    sheet1 = pandas.read_csv('/rawdata/RSNA_Pneumonia/stage_1_train_labels.csv')
+    sheet2 = pandas.read_csv('/rawdata/RSNA_Pneumonia/stage_2_train_labels.csv')
+    sheet = pandas.concat([sheet1, sheet2], ignore_index=True)
 
     id_field = 1  # patientId
     label_fields = {2: 'x', 3: 'y', 4: 'width', 5: 'height'}

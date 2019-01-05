@@ -3,7 +3,10 @@
 Created on 10/15/18
 @author: MRChou
 
-Scenario: Use pretrained hub model to test if RSNA image can be classified.
+Scenario: Use pretrained hub models to test if RSNA image can be classified.
+          Currently we have trained Inception Resnet v2 (ir),
+                                    PNASnet (pnas), and
+                                    Inception V3.
 """
 
 import os
@@ -17,7 +20,7 @@ from tensorflow.metrics import precision_at_thresholds as precision
 
 from RSNA_Pneumonia.RSNA_DataInput import keras_input_fn
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 DEVCONFIG = tf.ConfigProto()
 DEVCONFIG.gpu_options.allow_growth = True
@@ -65,7 +68,7 @@ def ir_model_fn(features, labels, mode, params):
     module = hub.Module(ir_module_path,
                         trainable=istrain,
                         tags={"train"} if istrain else None,
-                        name='InceptionResNetV2')
+                        name='InceptionResnetV2')
 
     feature_vector = module(features['image'])
 
@@ -93,16 +96,15 @@ def ir_model_fn(features, labels, mode, params):
         train_op = None
 
     if ispredict or iseval:  # i.e. not in train mode
-        predictions = tf.nn.sigmoid(output)
+        predictions = {'probability': tf.nn.sigmoid(output),
+                       'image_id': features['image_id']}
     else:
         predictions = None
 
     if iseval:
-        eval_metric = {'Recalls': recall(labels,
-                                         predictions,
+        eval_metric = {'Recalls': recall(labels, predictions['probability'],
                                          (0.1, 0.3, 0.5, 0.7, 0.9)),
-                       'Precision': precision(labels,
-                                              predictions,
+                       'Precision': precision(labels, predictions['probability'],
                                               (0.1, 0.3, 0.5, 0.7, 0.9))}
     else:
         eval_metric = None
@@ -152,16 +154,15 @@ def pnas_model_fn(features, labels, mode, params):
         train_op = None
 
     if ispredict or iseval:  # i.e. not in train mode
-        predictions = tf.nn.sigmoid(output)
+        predictions = {'probability': tf.nn.sigmoid(output),
+                       'image_id': features['image_id']}
     else:
         predictions = None
 
     if iseval:
-        eval_metric = {'Recalls': recall(labels,
-                                         predictions,
+        eval_metric = {'Recalls': recall(labels, predictions['probability'],
                                          (0.1, 0.3, 0.5, 0.7, 0.9)),
-                       'Precision': precision(labels,
-                                              predictions,
+                       'Precision': precision(labels, predictions['probability'],
                                               (0.1, 0.3, 0.5, 0.7, 0.9))}
     else:
         eval_metric = None
@@ -211,16 +212,15 @@ def incepv3_model_fn(features, labels, mode, params):
         train_op = None
 
     if ispredict or iseval:  # i.e. not in train mode
-        predictions = tf.nn.sigmoid(output)
+        predictions = {'probability': tf.nn.sigmoid(output),
+                       'image_id': features['image_id']}
     else:
         predictions = None
 
     if iseval:
-        eval_metric = {'Recalls': recall(labels,
-                                         predictions,
+        eval_metric = {'Recalls': recall(labels, predictions['probability'],
                                          (0.1, 0.3, 0.5, 0.7, 0.9)),
-                       'Precision': precision(labels,
-                                              predictions,
+                       'Precision': precision(labels, predictions['probability'],
                                               (0.1, 0.3, 0.5, 0.7, 0.9))}
     else:
         eval_metric = None
@@ -236,7 +236,7 @@ def script_train(flag):
     folder = '/archive/RSNA/train_TFRs/'
 
     if flag == 'InceptionResnet':
-        model_dir = '/archive/RSNA/models/Classifier_HubIncepRes'
+        model_dir = '/archive/RSNA/models/Classifier_HubIncepRes_2'
         model_fn = ir_model_fn
         hub_input_fn = ir_input_fn
     elif flag == 'PNASnet':
@@ -266,7 +266,7 @@ def script_train(flag):
                             include_neg=True,
                             augment=False)
 
-    lr = 0.001
+    lr = 0.002
     momentum = 0.3
     config = tf.estimator.RunConfig(session_config=DEVCONFIG)
 
@@ -283,6 +283,52 @@ def script_train(flag):
         lr = lr*0.9
 
 
+def script_predict():
+    folder = '/archive/RSNA/test_TFRs/'
+
+    for model_name in ['PNASnet', 'InceptionV3']:
+
+        if model_name == 'InceptionResnet':
+            model_dir = '/archive/RSNA/models/Classifier_HubIncepRes'
+            model_fn = ir_model_fn
+            hub_input_fn = ir_input_fn
+        elif model_name == 'PNASnet':
+            model_dir = '/archive/RSNA/models/Classifier_HubPNAS'
+            model_fn = pnas_model_fn
+            hub_input_fn = pnas_input_fn
+        elif model_name == 'InceptionV3':
+            model_dir = '/archive/RSNA/models/Classifier_HubIncepV3'
+            model_fn = incepv3_model_fn
+            hub_input_fn = ir_input_fn
+        else:
+            raise NotImplementedError
+
+        eval_files = 'test_*.tfrecord'
+        eval_files = [str(path) for path in pathlib.Path(folder).glob(eval_files)]
+        eval_input_fn = partial(hub_input_fn,
+                                files=eval_files,
+                                epoch=1,
+                                batch=1,
+                                include_neg=True,
+                                augment=False)
+
+        config = tf.estimator.RunConfig(session_config=DEVCONFIG)
+        model = tf.estimator.Estimator(model_fn=model_fn,
+                                       model_dir=model_dir,
+                                       config=config)
+
+        file = '/archive/RSNA/submissions/{}_output.csv'.format(model_name)
+        with open(file, 'w') as fout:
+            for result in model.predict(input_fn=eval_input_fn):
+                prob_text = str(result['probability'][0])
+                fout.write(result['image_id'].decode()+', '+prob_text+'\n')
+
+        print(model_name)
+        print(model.evaluate(input_fn=eval_input_fn))
+
+
 if __name__ == '__main__':
     # _script_examine_input()
-    script_train('InceptionV3')
+    # script_train('InceptionResnet')
+    script_predict()
+

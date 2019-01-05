@@ -152,7 +152,7 @@ def numpy_iou(bboxes1, bboxes2, epsilon=1e-10):
     return inter_area / (union+epsilon)
 
 
-def script_unet_test():
+def script_test_unet():
     folder = '/archive/RSNA/train_TFRs/'
     model_dir = '/archive/RSNA/models/BBoxer_Unet/'
 
@@ -212,7 +212,7 @@ def script_train_unet():
     momentum = 0.5
     config = tf.estimator.RunConfig(session_config=DEVCONFIG)
 
-    for step in range(10):
+    for step in range(5):
         model = tf.estimator.Estimator(model_fn=model_fn, model_dir=model_dir,
                                        config=config,
                                        params={'sgdlr': lr,
@@ -237,6 +237,42 @@ def script_train_unet():
         lr = lr*0.95
 
 
+def script_predict_unet():
+    folder = '/archive/RSNA/test_TFRs/'
+    model_dir = '/archive/RSNA/models/BBoxer_Unet/'
+
+    eval_files = 'test_*.tfrecord'
+    eval_files = [str(path) for path in pathlib.Path(folder).glob(eval_files)]
+    eval_input_fn = partial(unet_input_fn,
+                            files=eval_files,
+                            epoch=1,
+                            batch=1,
+                            include_neg=True,
+                            stdimg=True,
+                            augment=False)
+
+    config = tf.estimator.RunConfig(session_config=DEVCONFIG)
+    model = tf.estimator.Estimator(model_fn=model_fn,
+                                   model_dir=model_dir,
+                                   config=config)
+
+    for thres in [0.65, 0.7, 0.75, 0.8]:
+        file = '/archive/RSNA/submissions/submit_unet_{}.csv'.format(thres)
+        with open(file, 'w') as fout:
+            for result in model.predict(input_fn=eval_input_fn):
+                img = result['output']
+                box = imgmask_to_bbox(img, threshold=thres)
+                box_text = '{prob} {xmin} {ymin} {width} {height}'.format(
+                    prob=1,
+                    xmin=box[1],
+                    ymin=box[0],
+                    width=box[3]-box[1],
+                    height=box[2]-box[0]
+                )
+                fout.write(result['image_id'].decode()+', '+box_text+'\n')
+
+
 if __name__ == '__main__':
-    # script_unet_test()
-    script_train_unet()
+    # script_test_unet()
+    # script_train_unet()
+    script_predict_unet()

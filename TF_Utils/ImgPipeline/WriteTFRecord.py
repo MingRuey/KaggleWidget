@@ -6,6 +6,7 @@ Created on 9/15/18
 Scenario: For writing image array and feature labels into TFRecord file.
 """
 
+import abc
 import time
 import logging
 from pathlib import PurePath
@@ -16,9 +17,10 @@ from queue import Queue, Empty
 import tensorflow as tf
 
 
-class ImgObjAbstract:
+class ImgObjAbstract(abc.ABC):
     """A abstract interface that holds a single image and its labels."""
 
+    @abc.abstractmethod
     def to_tfexample(self):
         """
         Turn image and labels into an tensorflow example.
