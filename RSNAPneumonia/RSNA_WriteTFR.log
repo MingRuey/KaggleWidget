@@ -1,0 +1,37 @@
+2018-09-24 07:18:20,563  Start writing tfrecords
+2018-09-24 07:18:55,538  Start writing tfrecords
+2018-09-24 07:19:25,898  Finished writing 0 to 1000 image(s) into train_0001.tfrecord.
+2018-09-24 07:19:58,945  Finished writing 1000 to 2000 image(s) into train_0002.tfrecord.
+2018-09-24 07:20:31,248  Finished writing 2000 to 3000 image(s) into train_0003.tfrecord.
+2018-09-24 07:21:08,834  Finished writing 3000 to 4000 image(s) into train_0004.tfrecord.
+2018-09-24 07:21:42,439  Finished writing 4000 to 5000 image(s) into train_0005.tfrecord.
+2018-09-24 07:22:13,201  Finished writing 5000 to 6000 image(s) into train_0006.tfrecord.
+2018-09-24 07:22:45,112  Finished writing 6000 to 7000 image(s) into train_0007.tfrecord.
+2018-09-24 07:23:22,084  Finished writing 7000 to 8000 image(s) into train_0008.tfrecord.
+2018-09-24 07:23:52,037  Finished writing 8000 to 9000 image(s) into train_0009.tfrecord.
+2018-09-24 07:24:23,950  Finished writing 9000 to 10000 image(s) into train_0010.tfrecord.
+2018-09-24 07:25:00,004  Finished writing 10000 to 11000 image(s) into train_0011.tfrecord.
+2018-09-24 07:25:32,329  Finished writing 11000 to 12000 image(s) into train_0012.tfrecord.
+2018-09-24 07:26:02,898  Finished writing 12000 to 13000 image(s) into train_0013.tfrecord.
+2018-09-24 07:26:34,764  Finished writing 13000 to 14000 image(s) into train_0014.tfrecord.
+2018-09-24 07:27:11,232  Finished writing 14000 to 15000 image(s) into train_0015.tfrecord.
+2018-09-24 07:27:41,258  Finished writing 15000 to 16000 image(s) into train_0016.tfrecord.
+2018-09-24 07:28:13,310  Finished writing 16000 to 17000 image(s) into train_0017.tfrecord.
+2018-09-24 07:28:48,532  Finished writing 17000 to 18000 image(s) into train_0018.tfrecord.
+2018-09-24 07:29:20,144  Finished writing 18000 to 19000 image(s) into train_0019.tfrecord.
+2018-09-24 07:29:51,886  Finished writing 19000 to 20000 image(s) into train_0020.tfrecord.
+2018-09-24 07:30:28,254  Finished writing 20000 to 21000 image(s) into train_0021.tfrecord.
+2018-09-24 07:30:59,365  Finished writing 21000 to 22000 image(s) into train_0022.tfrecord.
+2018-09-24 07:31:30,701  Finished writing 22000 to 23000 image(s) into train_0023.tfrecord.
+2018-09-24 07:32:02,631  Finished writing 23000 to 24000 image(s) into train_0024.tfrecord.
+2018-09-24 07:32:40,265  Finished writing 24000 to 25000 image(s) into train_0025.tfrecord.
+2018-09-24 07:33:32,332   -- takes 876.7941091060638 seconds
+2018-09-24 07:33:32,333   -- 25684 success/0 errors
+2018-09-24 07:33:32,333   -- see WriteTFRecord.log
+
+2018-10-10 23:57:48,764  Start writing tfrecords
+2018-10-10 23:58:06,977  Finished writing 0 to 1000 image(s) into test_0001.tfrecord.
+2018-10-10 23:58:36,980   -- takes 48.2158637046814 seconds
+2018-10-10 23:58:36,980   -- 1000 success/0 errors
+2018-10-10 23:58:36,980   -- see WriteTFRecord.log
+

@@ -132,7 +132,10 @@ class ParquetArray:
         return self.to_dataframe().values
 
     def to_dataset(self):
-        ds = tf.data.Dataset.from_generator(self.__iter__, (tf.string, tf.float32))
+        ds = tf.data.Dataset.from_generator(self.__iter__,
+                                            output_types=(tf.int32, tf.float32),
+                                            output_shapes=(tf.TensorShape([]), tf.TensorShape([None]))
+                                            )
         return ds
 
 
