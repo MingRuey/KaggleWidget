@@ -17,14 +17,16 @@ import tensorflow as tf  # noqa: E402
 tf.config.gpu.set_per_process_memory_growth(True)
 
 from tensorflow.keras.layers import SimpleRNN, LSTM, Dense   # noqa: E402
-from tensorflow.keras.optimizers import SGD   # noqa: E402
+from tensorflow.keras.optimizers import SGD, Adam  # noqa: E402
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping  # noqa: E402
+from tensorflow.keras.callbacks import ReduceLROnPlateau  # noqa: E402
 from MLBOX.Database.formats import TSFORMAT   # noqa: E402
 from MLBOX.Database.dataset import DataBase   # noqa: E402
 from MLBOX.Scenes.SimpleSplit import SimpleSplit   # noqa: E402
-from MLBOX.Trainners.TF.Keras_Callbacks import ModelLogger   # noqa: E402
-from MLBOX.Trainners.TF.Keras_Callbacks import LearningRateDecaySchedule  # noqa: E402
-from KaggleWidget.FreeSound.create_database import label_map   # noqa: E402
+from MLBOX.Trainers.TF.Keras_Callbacks import ModelLogger  # noqa: E402
+# from MLBOX.Trainers.TF.Keras_Callbacks import LearningRateDecaySchedule  # noqa: E402
+from MLBOX.Trainers.TF.Keras_Metrics import lwlrap  # noqa: E402
+from frequently_used_variables import label_map  # noqa: E402
 from KaggleWidget.FreeSound.signal_transformer import TimeSeriesToMel   # noqa: E402
 from KaggleWidget.FreeSound.signal_transformer import SpectrogramsToImage   # noqa: E402
 
@@ -32,12 +34,14 @@ from KaggleWidget.FreeSound.signal_transformer import SpectrogramsToImage   # no
 TRAIN_NOISY = "/archive/FreeSound/database/train_noisy"
 TRAIN_CURATED = "/archive/FreeSound/database/train_curated"
 NUM_OF_CLASS = len(label_map)
-TOTAL_DATA = 4970
-SPLIT_RATIO = 0.1
 
-db = DataBase(formats=TSFORMAT)
-db.add_files(pathlib.Path(TRAIN_CURATED).glob("*.tfrecord"))
-db = SimpleSplit(db, ratio_for_vallidation=SPLIT_RATIO)
+curated_db = DataBase(formats=TSFORMAT)
+curated_db.add_files(pathlib.Path(TRAIN_CURATED).glob("*.tfrecord"))
+CURATED_DATA_COUNT = 4970
+all_db = DataBase(formats=TSFORMAT)
+all_db.add_files(pathlib.Path(TRAIN_NOISY).glob("*.tfrecord"))
+all_db.add_files(pathlib.Path(TRAIN_CURATED).glob("*.tfrecord"))
+ALL_DATA_COUNT = 24785
 
 NUM_MEL_BINS = 256
 ToMel = TimeSeriesToMel(number_of_mel_bins=NUM_MEL_BINS)
@@ -46,76 +50,98 @@ ToImg = SpectrogramsToImage(NUM_MEL_BINS, NUM_MEL_BINS)
 ToImgParser = ToImg.get_parser()
 
 
-def ImgParser(series):
-    return ToImgParser(ToMelParser(series))
-
-
 class BaseTrainner:
 
-    def __init__(
-            self,
-            base_lr,
-            out_dir,
-            min_epoch=20,
-            max_epoch=100,
-            early_stop_patience=8,
-            decode_ops=ToMelParser
-            ):
+    def __init__(self, out_dir):
         if not pathlib.Path(str(out_dir)).is_dir():
             raise ValueError("Invalid output dir")
         self.out_dir = str(out_dir)
-
         self.tmp_dir = pathlib.Path(out_dir).joinpath("tmp")
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         self.tmp_dir = str(self.tmp_dir)
 
-        self.base_lr = base_lr
-        self.lr_decay_factor = 0.5
-        self.min_epoch = min_epoch
-        self.max_epoch = max_epoch
-        self.patience = early_stop_patience
-
-        self.decode_ops = decode_ops
-
     def model(self):
         raise NotImplementedError()
 
-    def train(self):
+    def train(
+            self,
+            train_decode_ops,
+            vali_decode_ops,
+            base_lr,
+            database,
+            number_of_data,
+            train_vali_split_ratio=0.2,
+            lr_decay_factor=0.5,
+            batch_size=8,
+            min_epoch=40,
+            max_epoch=200,
+            early_stop_patience=20,
+            load_best=True
+            ):
 
-        optimizer = SGD(learning_rate=self.base_lr)
+        optimizer = Adam(
+            learning_rate=base_lr,
+            beta_1=0.9,
+            beta_2=0.999,
+            epsilon=1e-07,
+            amsgrad=False
+            )
+        # optimizer = SGD(learning_rate=base_lr)
         self.model.compile(
             optimizer=optimizer,
-            loss="categorical_crossentropy",
-            metrics=["categorical_accuracy"]
+            loss="binary_crossentropy",
+            metrics=["binary_accuracy", lwlrap]
             )
 
+        init_epoch = 0
+        if load_best:
+            weights = list(pathlib.Path(self.out_dir).glob("*.h5"))
+            if weights:
+                filename = weights[0].name
+                ini_epoch = int(filename.split("_")[1])
+                self.model.load_weights(str(weights))
+                print("load pretrain weights from {}".format(weights))
+                print("Re-train from epoch: {}".format(init_epoch))
+
+        db = SimpleSplit(
+                database,
+                ratio_for_vallidation=train_vali_split_ratio
+                )
+
         train_gener = db.get_train_dataset().get_input_tensor(
-            decode_ops=self.decode_ops,
+            decode_ops=train_decode_ops,
             num_of_class=NUM_OF_CLASS,
-            epoch=self.max_epoch,
-            batchsize=1
+            epoch=max_epoch,
+            batchsize=batch_size
         )
 
         vali_gener = db.get_train_dataset().get_input_tensor(
-            decode_ops=self.decode_ops,
+            decode_ops=vali_decode_ops,
             num_of_class=NUM_OF_CLASS,
-            epoch=self.max_epoch,
-            batchsize=1
+            epoch=max_epoch,
+            batchsize=batch_size
         )
 
         self.model.fit_generator(
+            initial_epoch=init_epoch,
             generator=train_gener,
-            epochs=self.max_epoch,
-            steps_per_epoch=int(TOTAL_DATA*(1-SPLIT_RATIO)),
+            epochs=max_epoch,
+            steps_per_epoch=int(
+                num_of_data*(1-train_vali_split_ratio)
+                ) // batch_size,
             callbacks=[
                 ModelLogger(
                     temp_model_folder=self.tmp_dir,
                     best_model_folder=self.out_dir,
                     monitor='val_loss', verbose=1, mode='min'
                     ),
-                LearningRateDecaySchedule.step_decay_by_epoch(
-                    decay=self.lr_decay_factor,
-                    epochs_to_decay=self.min_epoch
+                ReduceLROnPlateau(
+                    factor=lr_decay_factor,
+                    patience=early_stop_patience // 2,
+                    min_delta=1e-4,
+                    cooldown=2,
+                    min_lr=1e-6,
+                    monitor='val_loss', verbose=1, mode='min',
                     ),
                 TensorBoard(
                     log_dir=self.tmp_dir
@@ -123,12 +149,14 @@ class BaseTrainner:
                 EarlyStopping(
                     monitor='val_loss',
                     mode="min",
-                    patience=self.patience,
+                    patience=early_stop_patience,
                     verbose=1
                     )
                 ],
             validation_data=vali_gener,
-            validation_steps=int(TOTAL_DATA*SPLIT_RATIO),
+            validation_steps=int(
+                num_of_data*train_vali_split_ratio
+                ) // batch_size,
             validation_freq=1
         )
 
@@ -155,7 +183,7 @@ class VanillaRNN(BaseTrainner):
                 bias_initializer='zeros'
                 )(inputs)
 
-            output = Dense(NUM_OF_CLASS, activation="softmax")(rnn)
+            output = Dense(NUM_OF_CLASS, activation="sigmoid")(rnn)
 
             self._model = tf.keras.Model(inputs=inputs, outputs=output)
             print(self._model.summary())
@@ -187,7 +215,7 @@ class RawLSTM(BaseTrainner):
                 implementation=1
             )(inputs)
 
-            output = Dense(NUM_OF_CLASS, activation="softmax")(lstm)
+            output = Dense(NUM_OF_CLASS, activation="sigmoid")(lstm)
             self._model = tf.keras.Model(inputs=inputs, outputs=output)
             print(self._model.summary())
 
@@ -217,7 +245,7 @@ class RawRes(BaseTrainner):
             )
 
             output = base_model.output
-            output = Dense(NUM_OF_CLASS, activation="softmax")(output)
+            output = Dense(NUM_OF_CLASS, activation="sigmoid")(output)
 
             self._model = tf.keras.Model(inputs=inputs, outputs=output)
             print(self._model.summary())
@@ -225,41 +253,107 @@ class RawRes(BaseTrainner):
         return self._model
 
 
-
 if __name__ == "__main__":
-    device_options = {"0": "0", "1": "1", "all": "0, 1"}
     model_options = {"vanilla": VanillaRNN, "lstm": RawLSTM, "resnet": RawRes}
+    dataset_options = {
+        "curated": (curated_db, CURATED_DATA_COUNT),
+        "all": (all_db, ALL_DATA_COUNT)
+        }
+    augment_options = {
+        "std": tf.image.per_image_standardization,
+        "vertical": tf.image.random_flip_left_right,
+        "horizontal": tf.image.random_flip_up_down,
+        "contrast": tf.image.random_contrast,
+        "bright": tf.image.random_brightness,
+        "saturation": tf.image.random_saturation,
+        "hue": tf.image.random_hue
+    }
+
+    helper = {
+        "usage":
+            "python3 baseline.py " +
+            "[model options] [dataset option] [output path]" +
+            "[augment option1] [augment option2] ...",
+        "model options": list(model_options.keys()),
+        "dataset options": list(dataset_options.keys()),
+        "augment options": list(augment_options.keys())
+        }
 
     if len(sys.argv) < 4:
-        raise ValueError("Must specify model, device options and output dir")
+        print("Must specify model, dataset and output dir")
+        print("Usage: {}".format(helper["usage"]))
+        helper.pop("usage")
+        for key in helper.keys():
+            print("Arg {}".format(key))
+            print("    -- {}".format(helper[key]))
+        sys.exit()
 
-    device = device_options.get(sys.argv[1])
-    if device is None:
-        raise ValueError("Device must be one of {}".format(device_options))
-    else:
-        os.environ["CUDA_VISIBLE_DEVICES"] = device
-
-    model_fn = model_options.get(sys.argv[2].lower())
-    model_name = sys.argv[2].lower()
+    model_fn = model_options.get(sys.argv[1].lower())
+    model_name = sys.argv[1].lower()
     if model_fn is None:
         raise ValueError("Model must be one of {}".format(model_options))
 
+    dataset = dataset_options.get(sys.argv[2].lower())
+    if dataset is None:
+        raise ValueError("Model must be one of {}".format(dataset_options))
+    database = dataset[0]
+    num_of_data = dataset[1]
+
     out_dir = pathlib.Path(sys.argv[3])
     if not out_dir.is_dir():
-        raise ValueError("Outputdir not exist, got {}".format(out_dir))
+        print("Warning: Outputdir not exist, got {}".format(out_dir))
+        print("Warning: ---Try Create Outputdir---")
+        out_dir.mkdir(mode=0o775, parents=True)
 
     if model_name in ["vanilla", "lstm"]:
         model = model_fn(
             units=512,
-            base_lr=0.001,
             out_dir=str(out_dir)
             )
+
+        model.train(
+            base_lr=0.001,
+            train_decode_ops=ToMelParser,
+            vali_decode_ops=ToMelParser,
+            database=database,
+            number_of_data=num_of_data,
+            batch_size=1
+        )
     else:
+        arg_ops = []
+        if len(sys.argv) > 4:
+            for arg in sys.argv[4:]:
+                op = augment_options.get(arg)
+                if op is None:
+                    msg = "Not recognize augment option: {}"
+                    raise ValueError(msg.format(arg))
+                arg_ops.append(arg)
+
+        def ImgParser(series):
+            image = ToImgParser(ToMelParser(series))
+            if "std" in arg_ops:
+                op = augment_options.get("std")
+                image = op(image)
+            return image
+
+        def AugImgParser(series):
+            image = ToImgParser(ToMelParser(series))
+            if arg_ops:
+                for arg in arg_ops:
+                    op = augment_options.get(arg)
+                    image = op(image)
+            return image
+
         model = model_fn(
             units=NUM_MEL_BINS,
-            base_lr=0.01,
             out_dir=str(out_dir),
-            decode_ops=ImgParser
             )
 
-    model.train()
+        model.train(
+            base_lr=0.001,
+            train_decode_ops=AugImgParser,
+            vali_decode_ops=ImgParser,
+            database=database,
+            number_of_data=num_of_data,
+            batch_size=8
+        )

@@ -1,4 +1,19 @@
+import pathlib
 import tensorflow as tf
+from MLBOX.Database.formats import TSFORMAT
+from MLBOX.Database.dataset import DataBase
+from KaggleWidget.FreeSound.create_database import label_map
+
+
+TRAIN_NOISY = "/archive/FreeSound/database/train_noisy"
+TRAIN_CURATED = "/archive/FreeSound/database/train_curated"
+NUM_OF_CLASS = len(label_map)
+TOTAL_DATA = 4970
+SPLIT_RATIO = 0.1
+
+db = DataBase(formats=TSFORMAT)
+db.add_files(pathlib.Path(TRAIN_CURATED).glob("*.tfrecord"))
+db.add_files(pathlib.Path(TRAIN_NOISY).glob("*.tfrecord"))
 
 
 class TimeSeriesToMel:
@@ -62,19 +77,44 @@ class SpectrogramsToImage:
 
     def __init__(self, target_height, target_width):
         """Note: H is time diemntsion, W is feature dimentsion"""
-        self.h = target_height
-        self.w = target_width
+        self.h = tf.constant(target_height)
+        self.w = tf.constant(target_width)
 
     def get_parser(self):
 
         def parser(spectrograms):
             # expand dimension
             spectrograms = tf.expand_dims(spectrograms, axis=-1)
-            image = tf.image.resize_image_with_crop_or_pad(
-                spectrograms,
-                target_height=self.h,
-                target_width=self.w
+            zero = tf.constant(0)
+            one = tf.constant(1)
+            pad_size = self.h - tf.shape(spectrograms)[0]
+            pad_size = tf.maximum(zero, pad_size)
+            paddings = [[zero, pad_size], [zero, zero], [zero, zero]]
+            image = tf.pad(spectrograms, paddings)
+            image = tf.image.random_crop(
+                image,
+                [self.h, self.w, one]
             )
             return image
 
         return parser
+
+
+if __name__ == "__main__":
+
+    NUM_MEL_BINS = 256
+    ToMel = TimeSeriesToMel(number_of_mel_bins=NUM_MEL_BINS)
+    ToMelParser = ToMel.get_parser()
+    ToImg = SpectrogramsToImage(NUM_MEL_BINS, NUM_MEL_BINS)
+    ToImgParser = ToImg.get_parser()
+
+    def ImgParser(series):
+        return ToImgParser(ToMelParser(series))
+
+    inputs = db.get_input_tensor(
+        decode_ops=lambda x: x,
+        num_of_class=NUM_OF_CLASS,
+        epoch=1, batchsize=1
+        )
+    inputs = [_ for _ in inputs]
+    print(len(inputs))
