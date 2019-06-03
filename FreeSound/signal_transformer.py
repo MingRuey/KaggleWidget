@@ -2,7 +2,7 @@ import pathlib
 import tensorflow as tf
 from MLBOX.Database.formats import TSFORMAT
 from MLBOX.Database.dataset import DataBase
-from KaggleWidget.FreeSound.create_database import label_map
+from frequently_used_variables import label_map
 
 
 TRAIN_NOISY = "/archive/FreeSound/database/train_noisy"
@@ -100,17 +100,18 @@ class SpectrogramsToImage:
         return parser
 
 
+NUM_MEL_BINS = 256
+ToMel = TimeSeriesToMel(number_of_mel_bins=NUM_MEL_BINS)
+ToMelParser = ToMel.get_parser()
+ToImg = SpectrogramsToImage(NUM_MEL_BINS, NUM_MEL_BINS)
+ToImgParser = ToImg.get_parser()
+
+
+def ImgParser(series):
+    return ToImgParser(ToMelParser(series))
+
+
 if __name__ == "__main__":
-
-    NUM_MEL_BINS = 256
-    ToMel = TimeSeriesToMel(number_of_mel_bins=NUM_MEL_BINS)
-    ToMelParser = ToMel.get_parser()
-    ToImg = SpectrogramsToImage(NUM_MEL_BINS, NUM_MEL_BINS)
-    ToImgParser = ToImg.get_parser()
-
-    def ImgParser(series):
-        return ToImgParser(ToMelParser(series))
-
     inputs = db.get_input_tensor(
         decode_ops=lambda x: x,
         num_of_class=NUM_OF_CLASS,

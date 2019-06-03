@@ -20,34 +20,18 @@ from tensorflow.keras.layers import SimpleRNN, LSTM, Dense   # noqa: E402
 from tensorflow.keras.optimizers import SGD, Adam  # noqa: E402
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping  # noqa: E402
 from tensorflow.keras.callbacks import ReduceLROnPlateau  # noqa: E402
-from MLBOX.Database.formats import TSFORMAT   # noqa: E402
-from MLBOX.Database.dataset import DataBase   # noqa: E402
 from MLBOX.Scenes.SimpleSplit import SimpleSplit   # noqa: E402
 from MLBOX.Trainers.TF.Keras_Callbacks import ModelLogger  # noqa: E402
 # from MLBOX.Trainers.TF.Keras_Callbacks import LearningRateDecaySchedule  # noqa: E402
 from MLBOX.Trainers.TF.Keras_Metrics import lwlrap  # noqa: E402
 from frequently_used_variables import label_map  # noqa: E402
-from KaggleWidget.FreeSound.signal_transformer import TimeSeriesToMel   # noqa: E402
-from KaggleWidget.FreeSound.signal_transformer import SpectrogramsToImage   # noqa: E402
+from frequently_used_variables import DB_CURATED as curated_db   # noqa: E402
+from frequently_used_variables import CURATED_DATA_COUNT  # noqa: E402
+from frequently_used_variables import DB_ALL as all_db  # noqa: E402
+from frequently_used_variables import ALL_DATA_COUNT  # noqa: E402
+from signal_transformer import NUM_MEL_BINS, ToMelParser, ToImgParser  # noqa: E402
 
-
-TRAIN_NOISY = "/archive/FreeSound/database/train_noisy"
-TRAIN_CURATED = "/archive/FreeSound/database/train_curated"
 NUM_OF_CLASS = len(label_map)
-
-curated_db = DataBase(formats=TSFORMAT)
-curated_db.add_files(pathlib.Path(TRAIN_CURATED).glob("*.tfrecord"))
-CURATED_DATA_COUNT = 4970
-all_db = DataBase(formats=TSFORMAT)
-all_db.add_files(pathlib.Path(TRAIN_NOISY).glob("*.tfrecord"))
-all_db.add_files(pathlib.Path(TRAIN_CURATED).glob("*.tfrecord"))
-ALL_DATA_COUNT = 24785
-
-NUM_MEL_BINS = 256
-ToMel = TimeSeriesToMel(number_of_mel_bins=NUM_MEL_BINS)
-ToMelParser = ToMel.get_parser()
-ToImg = SpectrogramsToImage(NUM_MEL_BINS, NUM_MEL_BINS)
-ToImgParser = ToImg.get_parser()
 
 
 class BaseTrainner:
@@ -115,7 +99,7 @@ class BaseTrainner:
             batchsize=batch_size
         )
 
-        vali_gener = db.get_train_dataset().get_input_tensor(
+        vali_gener = db.get_vali_dataset().get_input_tensor(
             decode_ops=vali_decode_ops,
             num_of_class=NUM_OF_CLASS,
             epoch=max_epoch,
