@@ -10,6 +10,6 @@ if __name__ == "__main__":
     db.config_parser()
 
     for data, label in db.get_input_tensor(epoch=1, batchsize=1):
-        print(data)
+        data = data["data"]
         print(label)
         break

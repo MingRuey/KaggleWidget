@@ -1,6 +1,3 @@
-from variables import train_csv, test_csv, train_features_v0, test_features_v0  # noqa: E402
-from variables import train_features_v0, test_features_v0  # noqa: E402
-
 _base = "/rawdata/CHAMPS_Molecular/"
 
 train_csv = _base + "train.csv"
