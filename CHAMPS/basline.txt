@@ -31,19 +31,3 @@ for t in range(TOTAL_TIME_STEP):
     node_vector = new_node_vector[:, :, :]
 
 result = ReadOutFunction(node_vector)
-
-
-if __name__ == "__main__":
-
-    x = torch.randn((3, 3), requires_grad=True)
-    y = x * x
-    g = y + 5
-    out = g.sum()
-    out.backward(retain_graph=True)
-    print(x)
-    print(x.grad)
-    print(g)
-    out.backward(retain_graph=True)CH
-    print(x)
-    print(x.grad)
-    print(g)
