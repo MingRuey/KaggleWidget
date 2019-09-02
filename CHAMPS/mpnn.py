@@ -183,6 +183,9 @@ class MPNN(nn.Module):
             adj_mat (torch.Tensor):
                 0/1 valued matrix as connectivity of graph,
                 tensor of shape (batch, nodes, nodes)
+
+        Returns:
+            tensor of shape (batch, repr_len)
         """
         batch = feat_mat.shape[0]
         node_num = feat_mat.shape[1]
@@ -203,4 +206,5 @@ class MPNN(nn.Module):
             )
             state = self._gru(message_tensor=mp, node_state=state)
 
-        return self._read_out(node_state_0=init_state, node_state=state)
+        repr_vector = self._read_out(node_state_0=init_state, node_state=state)
+        return repr_vector
