@@ -8,7 +8,7 @@ import tensorflow as tf  # noqa: E402
 import tensorflow.keras.backend as K
 from tensorflow.keras.optimizers import SGD, Adam
 
-from MLBOX.Models.TF.Keras.UNet import UNET, unet_loss, dice_coef
+from MLBOX.Models.TF.Keras.UNet import UNET, unet_loss, dice_loss, dice_coef
 from MLBOX.Database.formats import DataFormat, IMGFORMAT
 from MLBOX.Database.dataset import DataBase
 from MLBOX.Trainers.basetrainer import KerasBaseTrainner
@@ -20,6 +20,7 @@ if path not in sys.path:
 
 from create_database import SEGFORMAT  # noqa: E402
 from variables import train_database, test_database  # noqa: E402
+from resunet import get_resunet, get_resunet_sigmoid  # noqa: E402
 
 
 def _turn_on_log():
@@ -56,7 +57,15 @@ if __name__ == "__main__":
 
     # select model
     args = parser.parse_args()
-    if args.model.lower() != "unet":
+    if args.model.lower() == "unet":
+        model = get_unet(softmax_activate=True)
+        loss = dice_loss
+    elif args.model.lower() == "resunet":
+        model = get_resunet(softmax_activate=True)
+        # model = get_resunet_sigmoid(sigmoid_activate=True)
+        loss = dice_loss
+
+    else:
         msg = "Unrecognized model type: {}"
         raise ValueError(msg.format(args.model))
 
@@ -91,19 +100,17 @@ if __name__ == "__main__":
     )
 
     trainner = KerasBaseTrainner(
-        # model=get_unet(),
-        # loss=unet_loss(),
-        model=get_unet(softmax_activate=True),
-        loss=dice_coef,
+        model=model,
+        loss=loss,
         optimizer=optimizer,
-        metrics=None,
+        metrics=[dice_coef],
         out_dir=str(out_dir)
     )
 
     trainner.train(
         train_db=train_db,  # should already config parser
         vali_db=vali_db,  # should already config parser
-        lr_decay_factor=0.5,
+        lr_decay_factor=0.1,
         batch_size=2,
         min_epoch=1,
         max_epoch=60,

@@ -11,19 +11,7 @@ path = os.path.dirname(__file__)
 if path not in sys.path:
     sys.path.append(path)
 
-file = os.path.basename(__file__)
-file = pathlib.Path(file).stem
-file = pathlib.Path(os.path.dirname(__file__)).joinpath(file)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s-%(name)s-%(message).1000s ',
-    handlers=[
-        logging.FileHandler("{}.log".format(file)),
-        logging.StreamHandler(sys.stdout)
-        ]
-    )
-
-import numpy as np
+import numpy as np  # noqa: E402
 import tensorflow as tf  # noqa: E402
 from MLBOX.Database.formats import _tffeature_bytes, _tffeature_float, _tffeature_int64   # noqa: E402
 from MLBOX.Database.formats import DataFormat, IMGFORMAT  # noqa: E402
@@ -220,6 +208,18 @@ class SEGFORMAT(DataFormat):
 
 
 if __name__ == "__main__":
+
+    file = os.path.basename(__file__)
+    file = pathlib.Path(file).stem
+    file = pathlib.Path(os.path.dirname(__file__)).joinpath(file)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s-%(name)s-%(message).1000s ',
+        handlers=[
+            logging.FileHandler("{}.log".format(file)),
+            logging.StreamHandler(sys.stdout)
+            ]
+    )
 
     train_labels = get_label_map(train_csv)
 
