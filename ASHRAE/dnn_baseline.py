@@ -34,12 +34,21 @@ def _turn_on_log():
 
 
 def get_basemodel():
+    temp_columns = []
+    temp_inputs = {}
+    temp_columns.extend([
+        feature_column.numeric_column("air_temperature", normalizer_fn=lambda x: x/10),
+        feature_column.numeric_column("dew_temperature", normalizer_fn=lambda x: x/10)
+    ])
+    for name in ["dew_temperature", "air_temperature"]:
+        temp_inputs[name] = keras.Input(shape=(1,), name=name)
+
     weather_columns = []
     weather_inputs = {}
     for name in [
-            "air_temperature", "cloud_coverage", "dew_temperature",
-            "precip_depth_1_hr", "sea_level_pressure", "wind_direction",
-            "wind_speed"]:
+            "cloud_coverage", "wind_speed", "wind_direction",
+            "precip_depth_1_hr", "sea_level_pressure",
+            ]:
         weather_columns.append(feature_column.numeric_column(name))
         weather_inputs[name] = keras.Input(shape=(1,), name=name)
 
@@ -54,13 +63,13 @@ def get_basemodel():
             "Lodging/residential", "Other"
         ]
     )
-    primary_use = feature_column.embedding_column(primary_use, 10)
+    primary_use = feature_column.embedding_column(primary_use, 1)
     site_id = feature_column.categorical_column_with_identity("site_id", 16)
-    site_id = feature_column.embedding_column(site_id, 10)
+    site_id = feature_column.embedding_column(site_id, 2)
     building_id = feature_column.categorical_column_with_identity("building_id", 1449)
-    building_id = feature_column.embedding_column(building_id , 10)
+    building_id = feature_column.embedding_column(building_id, 10)
     meter = feature_column.categorical_column_with_identity("meter", 4)
-    meter = feature_column.embedding_column(meter, 10)
+    meter = feature_column.embedding_column(meter, 1)
 
     building_meta = [primary_use, site_id, building_id, meter]
     building_meta_inputs = {
@@ -85,13 +94,13 @@ def get_basemodel():
 
     # time-related columns
     month = feature_column.categorical_column_with_identity("month", 12)
-    month = feature_column.embedding_column(month, 10)
+    month = feature_column.embedding_column(month, 1)
     day = feature_column.categorical_column_with_identity("day", 31)
-    day = feature_column.embedding_column(day, 10)
+    day = feature_column.embedding_column(day, 1)
     weekday = feature_column.categorical_column_with_identity("weekday", 7)
-    weekday = feature_column.embedding_column(weekday, 10)
+    weekday = feature_column.embedding_column(weekday, 1)
     hour = feature_column.categorical_column_with_identity("hour", 24)
-    hour = feature_column.embedding_column(hour, 10)
+    hour = feature_column.embedding_column(hour, 1)
 
     time_columns = [month, day, weekday, hour]
     time_inputs = {
@@ -99,35 +108,32 @@ def get_basemodel():
         ["month", "day", "weekday", "hour"]
     }
 
+    temp_layer = keras.layers.DenseFeatures(temp_columns)(temp_inputs)
     weather_layer = keras.layers.DenseFeatures(weather_columns)(weather_inputs)
-    weather_layer = keras.layers.BatchNormalization()(weather_layer)  # pure numeric columns, normalize here
+    weather_layer = keras.layers.BatchNormalization()(weather_layer)
     building_layer = keras.layers.DenseFeatures(building_meta)(building_meta_inputs)
     time_layer = keras.layers.DenseFeatures(time_columns)(time_inputs)
 
     concat = keras.layers.concatenate([
-        weather_layer, building_layer, time_layer
+        temp_layer, weather_layer, building_layer, time_layer
     ], axis=-1)
 
     output = keras.layers.Dense(
-        500, activation="relu", kernel_initializer="he_normal"
+        100, activation="relu", kernel_initializer="he_normal",
+        kernel_regularizer=keras.regularizers.l2(0.01)
     )(concat)
-
-    # output = keras.layers.Dense(
-    #     100, activation="relu", kernel_initializer="he_normal",
-    #     kernel_regularizer=keras.regularizers.l2(0.01)
-    # )(concat)
-    # output = keras.layers.Dropout(rate=0.5)(output)
-    # output = keras.layers.Dense(
-    #     100, activation="relu", kernel_initializer="he_normal",
-    #     kernel_regularizer=keras.regularizers.l2(0.01)
-    # )(output)
+    output = keras.layers.Dropout(rate=0.5)(output)
+    output = keras.layers.Dense(
+        100, activation="relu", kernel_initializer="he_normal",
+        kernel_regularizer=keras.regularizers.l2(0.01)
+    )(output)
 
     output = keras.layers.Dense(
         1, activation="relu", kernel_initializer="he_normal"
     )(output)
 
     return keras.Model(
-        inputs=[weather_inputs, building_meta_inputs, time_inputs],
+        inputs=[temp_inputs, weather_inputs, building_meta_inputs, time_inputs],
         outputs=output
     )
 
@@ -180,7 +186,9 @@ if __name__ == "__main__":
         db = get_dataset()
         # train_db, vali_db = db.train_test_split(0.2)
         train_db, vali_db = db.train_test_split(
-            0.5, target_column="last_half_months"
+            0.5,
+            # target_column="first_half_months"
+            target_column="last_half_months"
         )
 
         # optimizer = SGD(
