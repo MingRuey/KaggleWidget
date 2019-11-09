@@ -54,13 +54,13 @@ def get_basemodel():
             "Lodging/residential", "Other"
         ]
     )
-    primary_use = feature_column.embedding_column(primary_use, 2)
+    primary_use = feature_column.embedding_column(primary_use, 10)
     site_id = feature_column.categorical_column_with_identity("site_id", 16)
-    site_id = feature_column.embedding_column(site_id, 2)
+    site_id = feature_column.embedding_column(site_id, 10)
     building_id = feature_column.categorical_column_with_identity("building_id", 1449)
-    building_id = feature_column.embedding_column(building_id , 2)
+    building_id = feature_column.embedding_column(building_id , 10)
     meter = feature_column.categorical_column_with_identity("meter", 4)
-    meter = feature_column.embedding_column(meter, 1)
+    meter = feature_column.embedding_column(meter, 10)
 
     building_meta = [primary_use, site_id, building_id, meter]
     building_meta_inputs = {
@@ -71,19 +71,27 @@ def get_basemodel():
         name: keras.Input(shape=(1,), name=name, dtype=tf.int32) for name in
         ["site_id", "building_id", "meter"]
     })
+    building_meta.append(
+        feature_column.numeric_column("square_feet", normalizer_fn=tf.math.log1p)
+    )
+    building_meta.append(
+        feature_column.numeric_column("year_built", normalizer_fn=tf.math.log1p)
+    )
+    building_meta.append(
+        feature_column.numeric_column("floor_count", normalizer_fn=lambda x: x/26)
+    )
     for name in ["square_feet", "year_built", "floor_count"]:
-        building_meta.append(feature_column.numeric_column(name))
         building_meta_inputs[name] = keras.Input(shape=(1,), name=name)
 
     # time-related columns
     month = feature_column.categorical_column_with_identity("month", 12)
-    month = feature_column.embedding_column(month, 1)
+    month = feature_column.embedding_column(month, 10)
     day = feature_column.categorical_column_with_identity("day", 31)
-    day = feature_column.embedding_column(day, 1)
+    day = feature_column.embedding_column(day, 10)
     weekday = feature_column.categorical_column_with_identity("weekday", 7)
-    weekday = feature_column.embedding_column(weekday, 1)
+    weekday = feature_column.embedding_column(weekday, 10)
     hour = feature_column.categorical_column_with_identity("hour", 24)
-    hour = feature_column.embedding_column(hour, 1)
+    hour = feature_column.embedding_column(hour, 10)
 
     time_columns = [month, day, weekday, hour]
     time_inputs = {
@@ -92,26 +100,27 @@ def get_basemodel():
     }
 
     weather_layer = keras.layers.DenseFeatures(weather_columns)(weather_inputs)
+    weather_layer = keras.layers.BatchNormalization()(weather_layer)  # pure numeric columns, normalize here
     building_layer = keras.layers.DenseFeatures(building_meta)(building_meta_inputs)
     time_layer = keras.layers.DenseFeatures(time_columns)(time_inputs)
-
-    weather_layer = keras.layers.Dense(
-        50, activation="sigmoid", kernel_initializer="he_normal"
-    )(weather_layer)
-    building_layer = keras.layers.Dense(
-        50, activation="sigmoid", kernel_initializer="he_normal"
-    )(building_layer)
-    time_layer = keras.layers.Dense(
-        50, activation="sigmoid", kernel_initializer="he_normal"
-    )(time_layer)
 
     concat = keras.layers.concatenate([
         weather_layer, building_layer, time_layer
     ], axis=-1)
 
     output = keras.layers.Dense(
-        100, activation="sigmoid", kernel_initializer="he_normal"
+        500, activation="relu", kernel_initializer="he_normal"
     )(concat)
+
+    # output = keras.layers.Dense(
+    #     100, activation="relu", kernel_initializer="he_normal",
+    #     kernel_regularizer=keras.regularizers.l2(0.01)
+    # )(concat)
+    # output = keras.layers.Dropout(rate=0.5)(output)
+    # output = keras.layers.Dense(
+    #     100, activation="relu", kernel_initializer="he_normal",
+    #     kernel_regularizer=keras.regularizers.l2(0.01)
+    # )(output)
 
     output = keras.layers.Dense(
         1, activation="relu", kernel_initializer="he_normal"
@@ -123,14 +132,18 @@ def get_basemodel():
     )
 
 
+def naiveRMLSE(y_true, y_pred):
+    return K.sqrt(K.mean(K.square(tf.math.log1p(y_true) - y_pred)))
+
+
 def RMLSE(y_true, y_pred):
     mask = K.cast(K.greater(y_true, 1e-3), tf.float32)
     valid_meter_reading = mask * K.sqrt(
-        K.mean(K.square(tf.math.log1p(y_true) - tf.math.log1p(y_pred)))
+        K.mean(K.square(tf.math.log1p(y_true) - y_pred))
     )
     # 4.0 is mean log1p value of all meter readings
     empty_meter_reading = (mask - 1) * K.sqrt(
-        K.mean(K.square(4.0 - tf.math.log1p(y_pred)))
+        K.mean(K.square(4.0 - y_pred))
     )
     return valid_meter_reading + empty_meter_reading
 
@@ -151,7 +164,7 @@ if __name__ == "__main__":
         args = parser.parse_args()
         if args.model.lower() == "ann":
             model = get_basemodel()
-            loss = RMLSE
+            loss = naiveRMLSE
         else:
             msg = "Unrecognized model type: {}"
             raise ValueError(msg.format(args.model))
@@ -165,7 +178,10 @@ if __name__ == "__main__":
         # _turn_on_log()
 
         db = get_dataset()
-        train_db, vali_db = db.train_test_split(0.2)
+        # train_db, vali_db = db.train_test_split(0.2)
+        train_db, vali_db = db.train_test_split(
+            0.5, target_column="last_half_months"
+        )
 
         # optimizer = SGD(
         #     learning_rate=0.005,

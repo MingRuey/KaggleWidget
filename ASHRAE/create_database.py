@@ -1,6 +1,8 @@
 import os
+import random
 import time
 import pathlib
+import logging
 from datetime import datetime
 
 import numpy as np
@@ -9,8 +11,10 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
 from ASHRAE.constants import train_meter, train_weather
+from ASHRAE.constants import test_meter, test_weather
 from ASHRAE.constants import buildings_meta
 from ASHRAE.constants import per_meter, per_site_weather
+from ASHRAE.constants import test_per_meter, test_per_site
 
 
 OUTPUT_BUFFER_TO_BATCH_RATIO = 16
@@ -65,9 +69,12 @@ def check_time_interval():
         print("times in sites but not in meteres", site_times - meter_times)
 
 
-def create_per_meter_readings(base_dir=per_meter):
-    train_meter = pandas.read_csv(train_meter)
-    grouped = train_meter.groupby(["building_id", "meter"])
+def create_per_meter_readings(base_dir):
+    train = pandas.read_csv(train_meter)
+    test = pandas.read_csv(test_meter)
+
+    target = test
+    grouped = target.groupby(["building_id", "meter"])
 
     base_dir = pathlib.Path(base_dir)
     if not base_dir.is_dir():
@@ -89,9 +96,12 @@ def create_per_meter_readings(base_dir=per_meter):
         group.to_csv(str(base_dir.joinpath(file)), index=False)
 
 
-def create_per_site_weathers(base_dir=per_site_weather):
-    train_weather = pandas.read_csv(train_weather)
-    grouped = train_weather.groupby("site_id")
+def create_per_site_weathers(base_dir):
+    train = pandas.read_csv(train_weather)
+    test = pandas.read_csv(test_weather)
+
+    target_weather = test
+    grouped = target_weather.groupby("site_id")
 
     base_dir = pathlib.Path(base_dir)
     if not base_dir.is_dir():
@@ -151,16 +161,97 @@ class AshraeDS:
                 df[c] = df[c].astype("float32", copy=False)
         self._dfs.append(df)
 
-    def train_test_split(self, test_ratio: float, random_state=42):
+    def _random_pick_values_from_column(
+            self,
+            test_ratio: float,
+            target_column: str,
+            random_state: int = 42
+            ):
+        """random select subset of values from given column"""
+        random.seed(random_state)
+
+        #  only use first df to extract values,
+        #  which may not hold (if there are unseen value in other dfs)
+        df = self._dfs[0]
+        values = set(df[target_column].values)
+
+        n_sample = max(int(test_ratio*len(values)), 1)
+        test_values = set(random.sample(values, n_sample))
+        msg = "Extract elements {} from column '{}' be test split"
+        print(msg.format(test_values, target_column))
+        return test_values
+
+    def train_test_split(
+            self,
+            test_ratio: float,
+            target_column: str = None,
+            random_state=42
+            ):
+        """Simple random split the data set
+
+        Args:
+            test_ratio (float): split ratio
+            target_column (str, optional):
+                the target column to stratify,
+                if None, random split by added csv is used
+            random_state (int, optional): the random seed
+
+        Returns:
+            a tuple of (train dataset, test dataset)
+        """
         train_dfs = []
         test_dfs = []
-        for df in self._dfs:
+        if target_column:
+            if target_column == "first_half_months":
+                test_values = {1, 2, 3, 4, 5, 6}
+                target_column = "month"
+            elif target_column == "last_half_months":
+                test_values = {7, 8, 9, 10, 11, 12}
+                target_column = "month"
+            else:
+                if target_column and any(target_column not in df for df in self._dfs):
+                    msg = "Not recognized target column {}"
+                    raise ValueError(msg.format(target_column))
+
+                test_values = self._random_pick_values_from_column(
+                    test_ratio=test_ratio,
+                    target_column=target_column,
+                    random_state=random_state
+                )
+
+            for df in self._dfs:
+                index = df[target_column].isin(test_values)
+                test_df = df.loc[index]
+                train_df = df.loc[~index]
+                train_dfs.append(train_df)
+                test_dfs.append(test_df)
+
+        elif len(self._dfs) == 1:
+            print("Single csv is used, split over rows")
             train_df, test_df = train_test_split(
-                df,
-                test_size=test_ratio, random_state=random_state
+                self._dfs[0], test_size=test_ratio,
+                random_state=random_state
             )
             train_dfs.append(train_df)
             test_dfs.append(test_df)
+        else:
+            print("Multi csvs are used, split over csvs")
+            random.seed(random_state)
+
+            n_sample = int(test_ratio * len(self._dfs))
+            if n_sample < 1 or len(self._dfs) - n_sample < 1:
+                msg = "Either test or train set is empty after {} test-split"
+                raise ValueError(msg.format(test_ratio))
+
+            random.shuffle(self._dfs)
+            test_dfs.extend(self._dfs[:n_sample])
+            train_dfs.extend(self._dfs[n_sample:])
+
+            sampled_buildings = set(
+                df.ix[0, "building_id"] for df in test_dfs
+            )
+            msg = "Extract buildings {} be test split"
+            print(msg.format(sampled_buildings))
 
         return (
             AshraeDS(meta=self._meta.copy(), dfs=train_dfs),
@@ -170,9 +261,16 @@ class AshraeDS:
     @staticmethod
     def _parser(feature):
         """Doing preprocess stuff like one-hot, ..."""
-        label = feature.pop("meter_reading")
+        if "meter_reading" in feature:
+            # return meter reading at train
+            label = feature.pop("meter_reading")
+        else:
+            # return row id at test
+            label = feature.pop("row_id")
+
         feature["day"] = feature["day"] - 1
         feature["month"] = feature["month"] - 1
+
         return feature, label
 
     def get_dataset(self, epoch: int, batchsize: int):
@@ -184,7 +282,6 @@ class AshraeDS:
         if len(self._dfs) > 1:
             start = time.time()
             merge_df = merge_df.append(self._dfs[1:], ignore_index=True)
-            print("It takes ", time.time() - start, "to append dataframes", len(self._dfs))
         merge_df = merge_df.sample(frac=1).reset_index(drop=True)  # fast shuffle
 
         dataset = tf.data.Dataset.from_tensor_slices(dict(merge_df))
@@ -192,12 +289,12 @@ class AshraeDS:
             self._parser,
             num_parallel_calls=OUTPUT_PARALLEL_CALL)
         dataset = dataset.repeat(epoch)
-        dataset = dataset.batch(batchsize, drop_remainder=True)
+        dataset = dataset.batch(batchsize, drop_remainder=False)
         dataset = dataset.prefetch(OUTPUT_BUFFER_TO_BATCH_RATIO)
         return dataset
 
 
-def get_dataset():
+def get_dataset(meter_files_to_add: int=-1):
     ds = AshraeDS()
 
     bs_mapping = _get_buildings_sites_map()
@@ -206,17 +303,41 @@ def get_dataset():
         site_id = int(csv.stem.split("-")[-1])
         sites[site_id] = csv
 
+    cnt = 0
     for meter_csv in pathlib.Path(per_meter).glob("*.csv"):
         b_id = int(meter_csv.stem.split("-")[1])
         site_id = bs_mapping[b_id]
         site_csv = sites[site_id]
         ds.add_meter(weather_csv=str(site_csv), meter_csv=str(meter_csv))
+        cnt += 1
+        if cnt == meter_files_to_add:
+            break
+
+    return ds
+
+
+def get_test_dataset(meter_files_to_add: int=-1):
+    ds = AshraeDS()
+
+    bs_mapping = _get_buildings_sites_map()
+    sites = {}
+    for csv in pathlib.Path(test_per_site).glob("*.csv"):
+        site_id = int(csv.stem.split("-")[-1])
+        sites[site_id] = csv
+
+    cnt = 0
+    for meter_csv in pathlib.Path(test_per_meter).glob("*.csv"):
+        b_id = int(meter_csv.stem.split("-")[1])
+        site_id = bs_mapping[b_id]
+        site_csv = sites[site_id]
+        ds.add_meter(weather_csv=str(site_csv), meter_csv=str(meter_csv))
+        cnt += 1
+        if cnt == meter_files_to_add:
+            break
 
     return ds
 
 
 if __name__ == "__main__":
-    # create_per_meter_readings()
-    # create_per_site_weathers()
-
-    check_time_interval()
+    create_per_meter_readings(base_dir=test_per_meter)
+    # create_per_site_weathers(base_dir=test_per_site)
