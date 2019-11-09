@@ -201,7 +201,7 @@ class RawLSTM(BaseTrainner):
 
             output = Dense(NUM_OF_CLASS, activation="sigmoid")(lstm)
             self._model = tf.keras.Model(inputs=inputs, outputs=output)
-            print(self._model.summary())
+            self._model.summary()
 
         return self._model
 
@@ -232,7 +232,7 @@ class RawRes(BaseTrainner):
             output = Dense(NUM_OF_CLASS, activation="sigmoid")(output)
 
             self._model = tf.keras.Model(inputs=inputs, outputs=output)
-            print(self._model.summary())
+            self._model.summary()
 
         return self._model
 
