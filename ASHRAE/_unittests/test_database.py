@@ -91,11 +91,13 @@ class TestAshraeDS:
 class TestEmbedding:
 
     def test_weather(self):
-        ds = _get_ds(3)
+        ds = get_test_dataset(3)
+        for feature, row_id in ds:
+            print(row_id, feature)
 
 
 if __name__ == "__main__":
     test = TestAshraeDS()
     # test.test_train_test_split()
-    test.test_by_column_split()
-    # test.test_testdataset()
+    # test.test_by_column_split()
+    test.test_testdataset()

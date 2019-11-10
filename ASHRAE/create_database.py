@@ -208,6 +208,12 @@ class AshraeDS:
             elif target_column == "last_half_months":
                 test_values = {7, 8, 9, 10, 11, 12}
                 target_column = "month"
+            elif target_column == "first_iter_months":
+                test_values = {1, 3, 5, 7, 9, 11}
+                target_column = "month"
+            elif target_column == "last_iter_months":
+                test_values = {2, 4, 6, 8, 10, 12}
+                target_column = "month"
             else:
                 if target_column and any(target_column not in df for df in self._dfs):
                     msg = "Not recognized target column {}"
