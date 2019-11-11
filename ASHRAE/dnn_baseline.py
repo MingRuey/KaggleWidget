@@ -67,7 +67,7 @@ def get_basemodel():
     site_id = feature_column.categorical_column_with_identity("site_id", 16)
     site_id = feature_column.embedding_column(site_id, 2)
     building_id = feature_column.categorical_column_with_identity("building_id", 1449)
-    building_id = feature_column.embedding_column(building_id, 10)
+    building_id = feature_column.embedding_column(building_id, 2)
     meter = feature_column.categorical_column_with_identity("meter", 4)
     meter = feature_column.embedding_column(meter, 1)
 
@@ -122,6 +122,7 @@ def get_basemodel():
         100, activation="relu", kernel_initializer="he_normal",
         kernel_regularizer=keras.regularizers.l2(0.01)
     )(concat)
+    output = keras.layers.Dropout(rate=0.5)(output)
     output = keras.layers.Dense(
         100, activation="relu", kernel_initializer="he_normal",
         kernel_regularizer=keras.regularizers.l2(0.01)
@@ -189,8 +190,8 @@ if __name__ == "__main__":
             0.5,
             # target_column="first_half_months"
             # target_column="last_half_months"
-            # target_column="first_iter_months"
-            target_column="last_iter_months"
+            target_column="first_iter_months"
+            # target_column="last_iter_months"
         )
 
         # optimizer = SGD(
