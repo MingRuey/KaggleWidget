@@ -10,8 +10,10 @@ test_weather = "/rawdata/ASHRAE_Energy/weather_test.csv"
 
 # Processed data
 per_site_weather = "/archive/ASHRAE/dataset/per_site_weathers/train"
-per_meter = "/archive/ASHRAE/dataset/per_meter"
+per_meter = "/archive/ASHRAE/dataset/train_meter"
 
+# local validation
+val_per_meter = "/archive/ASHRAE/dataset/val_meter"
 
 # Testing
 test_per_meter = "/archive/ASHRAE/dataset/test_meter/"

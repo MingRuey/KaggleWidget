@@ -14,6 +14,7 @@ from ASHRAE.constants import train_meter, train_weather
 from ASHRAE.constants import test_meter, test_weather
 from ASHRAE.constants import buildings_meta
 from ASHRAE.constants import per_meter, per_site_weather
+from ASHRAE.constants import val_per_meter
 from ASHRAE.constants import test_per_meter, test_per_site
 
 
@@ -71,9 +72,11 @@ def check_time_interval():
 
 def create_per_meter_readings(base_dir):
     train = pandas.read_csv(train_meter)
+    train["row_id"] = np.arange(len(train))  # for create local validation
+    train.drop("meter_reading", axis=1, inplace=True)  # for create local validation
     test = pandas.read_csv(test_meter)
 
-    target = test
+    target = train
     grouped = target.groupby(["building_id", "meter"])
 
     base_dir = pathlib.Path(base_dir)
@@ -322,6 +325,28 @@ def get_dataset(meter_files_to_add: int=-1):
     return ds
 
 
+def get_val_dataset(meter_files_to_add: int=-1):
+    ds = AshraeDS()
+
+    bs_mapping = _get_buildings_sites_map()
+    sites = {}
+    for csv in pathlib.Path(per_site_weather).glob("*.csv"):
+        site_id = int(csv.stem.split("-")[-1])
+        sites[site_id] = csv
+
+    cnt = 0
+    for meter_csv in pathlib.Path(val_per_meter).glob("*.csv"):
+        b_id = int(meter_csv.stem.split("-")[1])
+        site_id = bs_mapping[b_id]
+        site_csv = sites[site_id]
+        ds.add_meter(weather_csv=str(site_csv), meter_csv=str(meter_csv))
+        cnt += 1
+        if cnt == meter_files_to_add:
+            break
+
+    return ds
+
+
 def get_test_dataset(meter_files_to_add: int=-1):
     ds = AshraeDS()
 
@@ -345,5 +370,5 @@ def get_test_dataset(meter_files_to_add: int=-1):
 
 
 if __name__ == "__main__":
-    create_per_meter_readings(base_dir=test_per_meter)
+    create_per_meter_readings(base_dir=val_per_meter)
     # create_per_site_weathers(base_dir=test_per_site)
