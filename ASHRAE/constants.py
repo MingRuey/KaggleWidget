@@ -20,3 +20,9 @@ test_per_meter = "/archive/ASHRAE/dataset/test_meter/"
 test_per_site = "/archive/ASHRAE/dataset/per_site_weathers/test"
 
 sample_submission = "/rawdata/ASHRAE_Energy/sample_submission.csv"
+
+# External data
+site0_buildings = "/archive/ASHRAE/dataset/external/Site0/building_metadata_external.csv"
+site0_csv = "/archive/ASHRAE/dataset/external/Site0/site0.csv"
+
+weather_local_time = "/archive/ASHRAE/dataset/external/WeatherInLocalTime/site_ids.csv"

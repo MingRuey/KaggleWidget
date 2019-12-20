@@ -325,7 +325,7 @@ def get_dataset(meter_files_to_add: int=-1):
     return ds
 
 
-def get_val_dataset(meter_files_to_add: int=-1):
+def get_val_dataset(meter_files_to_add: int = -1):
     ds = AshraeDS()
 
     bs_mapping = _get_buildings_sites_map()
@@ -371,4 +371,4 @@ def get_test_dataset(meter_files_to_add: int=-1):
 
 if __name__ == "__main__":
     create_per_meter_readings(base_dir=val_per_meter)
-    # create_per_site_weathers(base_dir=test_per_site)
+    create_per_site_weathers(base_dir=test_per_site)
